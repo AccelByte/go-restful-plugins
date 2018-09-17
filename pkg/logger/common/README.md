@@ -4,6 +4,12 @@ This package enables logging using Common Log Format in go-restful apps.
 
 ## Usage
 
+### Importing
+
+```go
+import "github.com/AccelByte/go-restful-plugins/pkg/logger/common"
+```
+
 ### Log all endpoints
 
 ```go

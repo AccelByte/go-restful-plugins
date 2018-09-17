@@ -7,6 +7,12 @@ request header, if any, and generate trace for that request.
 
 ## Usage
 
+### Importing
+
+```go
+import "github.com/AccelByte/go-restful-plugins/pkg/apm/datadog"
+```
+
 ### Start the tracer
 
 **Important**, Datadog tracer will not send any trace if not started.

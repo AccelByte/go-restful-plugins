@@ -1,5 +1,5 @@
-# AB Go-Restful Instrumentation
+# Go-Restful Plugins
 
-This project contains packages for instrumenting [go-restful](https://github.com/emicklei/go-restful) projects.
+This project contains plugins for [go-restful](https://github.com/emicklei/go-restful) projects.
 
-Find each instrumentation's README in its folder.
+Find each package's README in its own folder.

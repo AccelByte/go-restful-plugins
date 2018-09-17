@@ -28,10 +28,11 @@ import (
 )
 
 // Start initiates the tracer
-func Start(addr string, serviceName string, debugMode bool) {
+func Start(addr string, serviceName string, environment string, debugMode bool) {
 	tracer.Start(
 		tracer.WithAgentAddr(addr),
 		tracer.WithServiceName(serviceName),
+		tracer.WithGlobalTag(ext.Environment, environment),
 		tracer.WithDebugMode(debugMode))
 }
 

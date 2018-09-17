@@ -17,10 +17,11 @@
 package common
 
 import (
-	"github.com/emicklei/go-restful"
-	"github.com/sirupsen/logrus"
 	"strings"
 	"time"
+
+	"github.com/emicklei/go-restful"
+	"github.com/sirupsen/logrus"
 )
 
 // Log is a filter that will log incoming request with Common Log Format
@@ -32,7 +33,7 @@ func Log(req *restful.Request, resp *restful.Response, chain *restful.FilterChai
 		}
 	}
 	chain.ProcessFilter(req, resp)
-	logrus.Infof("%s - %s [%s] \"%s %s %s\" %d %d",
+	logrus.Infof(`%s - %s [%s] "%s %s %s" %d %d`,
 		strings.Split(req.Request.RemoteAddr, ":")[0],
 		username,
 		time.Now().Format("02/Jan/2006:15:04:05 -0700"),
