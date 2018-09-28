@@ -61,7 +61,7 @@ func TestTrace200(t *testing.T) {
 			_, ok := tracer.SpanFromContext(request.Request.Context())
 			assert.True(ok)
 			id := request.PathParameter("id")
-			response.Write([]byte(id))
+			ignoreErr(response.Write([]byte(id)))
 		}))
 
 	container := restful.NewContainer()
@@ -98,7 +98,7 @@ func TestError(t *testing.T) {
 	ws := new(restful.WebService)
 	ws.Filter(Trace)
 	ws.Route(ws.GET("/err").To(func(request *restful.Request, response *restful.Response) {
-		response.WriteError(500, wantErr)
+		ignoreErr(response.WriteError(500, wantErr))
 	}))
 
 	container := restful.NewContainer()
@@ -130,7 +130,7 @@ func TestGetSpanNotInstrumented(t *testing.T) {
 		// Assert we don't have a span on the context.
 		_, ok := tracer.SpanFromContext(request.Request.Context())
 		assert.False(ok)
-		response.Write([]byte("ok"))
+		ignoreErr(response.Write([]byte("ok")))
 	}))
 
 	container := restful.NewContainer()
@@ -153,7 +153,7 @@ func TestPropagation(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	pspan := tracer.StartSpan("test")
-	tracer.Inject(pspan.Context(), tracer.HTTPHeadersCarrier(r.Header))
+	ignoreErr(tracer.Inject(pspan.Context(), tracer.HTTPHeadersCarrier(r.Header)))
 
 	ws := new(restful.WebService)
 	ws.Filter(Trace)
@@ -178,7 +178,7 @@ func TestInject(t *testing.T) {
 	ws.Filter(Trace)
 	ws.Route(ws.GET("/user/{id}").To(func(request *restful.Request, response *restful.Response) {
 		outReq := httptest.NewRequest("GET", "/example", nil)
-		Inject(outReq, request)
+		ignoreErr(Inject(outReq, request))
 		_, err := tracer.Extract(tracer.HTTPHeadersCarrier(outReq.Header))
 		assert.Nil(err)
 	}))
@@ -190,4 +190,8 @@ func TestInject(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	container.ServeHTTP(w, r)
+}
+
+func ignoreErr(_ ...interface{}) {
+
 }

@@ -55,14 +55,14 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 		token, err := parseAccessToken(req)
 		if err != nil {
 			logrus.Warn("unauthorized access: ", err)
-			resp.WriteErrorString(http.StatusUnauthorized, "unauthorized access")
+			logErr(resp.WriteErrorString(http.StatusUnauthorized, "unauthorized access"))
 			return
 		}
 
 		claims, err := filter.iamClient.ValidateAndParseClaims(token)
 		if err != nil {
 			logrus.Warn("unauthorized access: ", err)
-			resp.WriteErrorString(http.StatusUnauthorized, "unauthorized access")
+			logErr(resp.WriteErrorString(http.StatusUnauthorized, "unauthorized access"))
 			return
 		}
 
@@ -70,11 +70,11 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 			if err = opt(req, filter.iamClient, claims); err != nil {
 				if svcErr, ok := err.(restful.ServiceError); ok {
 					logrus.Warn(svcErr.Message)
-					resp.WriteErrorString(svcErr.Code, svcErr.Message)
+					logErr(resp.WriteErrorString(svcErr.Code, svcErr.Message))
 					return
 				}
 				logrus.Warn(err)
-				resp.WriteErrorString(http.StatusUnauthorized, err.Error())
+				logErr(resp.WriteErrorString(http.StatusUnauthorized, err.Error()))
 				return
 			}
 		}
@@ -162,4 +162,8 @@ func parseAccessToken(request *restful.Request) (string, error) {
 	token := tokenSplit[1]
 
 	return token, nil
+}
+
+func logErr(err error) {
+	logrus.Error(err)
 }
