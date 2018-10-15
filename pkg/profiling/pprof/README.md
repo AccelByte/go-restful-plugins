@@ -15,3 +15,7 @@ import "github.com/AccelByte/go-restful-plugins/pkg/profiling/pprof"
 ```go
 pprof.Route("/basepath")
 ```
+
+Now the pprof paths can be accessed from `http://host:port/basepath/debug/pprof`.
+
+Reference: [https://golang.org/pkg/net/http/pprof/](https://golang.org/pkg/net/http/pprof/)
