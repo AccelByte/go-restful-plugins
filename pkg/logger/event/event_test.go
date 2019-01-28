@@ -21,13 +21,21 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	iamAuth "github.com/AccelByte/go-restful-plugins/pkg/auth/iam"
+	"github.com/AccelByte/iam-go-sdk"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/emicklei/go-restful"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestLog(t *testing.T) {
+// nolint: dupl // most part of the test is identical
+func TestInfoLog(t *testing.T) {
 	ws := new(restful.WebService)
-	ws.Filter(Log("test"))
+	ws.Filter(Log("test", ExtractNull))
+
+	var evt *event
+
 	ws.Route(
 		ws.GET("/namespace/{namespace}/user/{id}").
 			Param(restful.PathParameter("namespace", "namespace")).
@@ -38,18 +46,234 @@ func TestLog(t *testing.T) {
 				Info(request, 99, "success")
 				response.WriteHeader(http.StatusOK)
 
-				evt := getEvent(request)
-
-				assert.Equal(t, evt.TargetNamespace, "abc")
-				assert.Equal(t, evt.TargetUserID, "def")
-				assert.Equal(t, evt.ID, 99)
-				assert.Contains(t, evt.additionalFields, "test")
+				evt = getEvent(request)
 			}))
 
 	container := restful.NewContainer()
 	container.Add(ws)
 
 	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req.Header.Set("X-Forwarded-For", "8.8.8.8")
+
 	resp := httptest.NewRecorder()
 	container.ServeHTTP(resp, req)
+
+	assert.Equal(t, "test", evt.Realm)
+	assert.Equal(t, "abc", evt.TargetNamespace)
+	assert.Equal(t, "def", evt.TargetUserID)
+	assert.Equal(t, "8.8.8.8", evt.SourceIP)
+	assert.Equal(t, 99, evt.ID)
+	assert.Equal(t, []interface{}{"success"}, evt.message)
+	assert.Equal(t, logrus.InfoLevel, evt.level)
+	assert.Contains(t, evt.additionalFields, "test")
+}
+
+// nolint: dupl // most part of the test is identical
+func TestWarnLog(t *testing.T) {
+	ws := new(restful.WebService)
+	ws.Filter(Log("test", ExtractNull))
+
+	var evt *event
+
+	ws.Route(
+		ws.GET("/namespace/{namespace}/user/{id}").
+			Param(restful.PathParameter("namespace", "namespace")).
+			Param(restful.PathParameter("id", "user ID")).
+			To(func(request *restful.Request, response *restful.Response) {
+				TargetUser(request, request.PathParameter("id"), request.PathParameter("namespace"))
+				AdditionalFields(request, map[string]interface{}{"test": "test"})
+				Warn(request, 99, "success")
+				response.WriteHeader(http.StatusOK)
+
+				evt = getEvent(request)
+			}))
+
+	container := restful.NewContainer()
+	container.Add(ws)
+
+	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req.Header.Set("X-Forwarded-For", "8.8.8.8")
+	resp := httptest.NewRecorder()
+	container.ServeHTTP(resp, req)
+
+	assert.Equal(t, "test", evt.Realm)
+	assert.Equal(t, "abc", evt.TargetNamespace)
+	assert.Equal(t, "def", evt.TargetUserID)
+	assert.Equal(t, "8.8.8.8", evt.SourceIP)
+	assert.Equal(t, 99, evt.ID)
+	assert.Equal(t, []interface{}{"success"}, evt.message)
+	assert.Equal(t, logrus.WarnLevel, evt.level)
+	assert.Contains(t, evt.additionalFields, "test")
+}
+
+// nolint: dupl // most part of the test is identical
+func TestDebugLog(t *testing.T) {
+	ws := new(restful.WebService)
+	ws.Filter(Log("test", ExtractNull))
+
+	var evt *event
+
+	ws.Route(
+		ws.GET("/namespace/{namespace}/user/{id}").
+			Param(restful.PathParameter("namespace", "namespace")).
+			Param(restful.PathParameter("id", "user ID")).
+			To(func(request *restful.Request, response *restful.Response) {
+				TargetUser(request, request.PathParameter("id"), request.PathParameter("namespace"))
+				AdditionalFields(request, map[string]interface{}{"test": "test"})
+				Debug(request, 99, "success")
+				response.WriteHeader(http.StatusOK)
+
+				evt = getEvent(request)
+			}))
+
+	container := restful.NewContainer()
+	container.Add(ws)
+
+	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req.Header.Set("X-Forwarded-For", "8.8.8.8")
+	resp := httptest.NewRecorder()
+	container.ServeHTTP(resp, req)
+
+	assert.Equal(t, "test", evt.Realm)
+	assert.Equal(t, "abc", evt.TargetNamespace)
+	assert.Equal(t, "def", evt.TargetUserID)
+	assert.Equal(t, "8.8.8.8", evt.SourceIP)
+	assert.Equal(t, 99, evt.ID)
+	assert.Equal(t, []interface{}{"success"}, evt.message)
+	assert.Equal(t, logrus.DebugLevel, evt.level)
+	assert.Contains(t, evt.additionalFields, "test")
+}
+
+// nolint: dupl // most part of the test is identical
+func TestErrorLog(t *testing.T) {
+	ws := new(restful.WebService)
+	ws.Filter(Log("test", ExtractNull))
+
+	var evt *event
+
+	ws.Route(
+		ws.GET("/namespace/{namespace}/user/{id}").
+			Param(restful.PathParameter("namespace", "namespace")).
+			Param(restful.PathParameter("id", "user ID")).
+			To(func(request *restful.Request, response *restful.Response) {
+				TargetUser(request, request.PathParameter("id"), request.PathParameter("namespace"))
+				AdditionalFields(request, map[string]interface{}{"test": "test"})
+				Error(request, 99, "success")
+				response.WriteHeader(http.StatusOK)
+
+				evt = getEvent(request)
+			}))
+
+	container := restful.NewContainer()
+	container.Add(ws)
+
+	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req.Header.Set("X-Forwarded-For", "8.8.8.8")
+	resp := httptest.NewRecorder()
+	container.ServeHTTP(resp, req)
+
+	assert.Equal(t, "test", evt.Realm)
+	assert.Equal(t, "abc", evt.TargetNamespace)
+	assert.Equal(t, "def", evt.TargetUserID)
+	assert.Equal(t, "8.8.8.8", evt.SourceIP)
+	assert.Equal(t, 99, evt.ID)
+	assert.Equal(t, []interface{}{"success"}, evt.message)
+	assert.Equal(t, logrus.ErrorLevel, evt.level)
+	assert.Contains(t, evt.additionalFields, "test")
+}
+
+// nolint: dupl // most part of the test is identical
+func TestWithNoEventID(t *testing.T) {
+	ws := new(restful.WebService)
+	ws.Filter(Log("test", ExtractNull))
+
+	var evt *event
+
+	ws.Route(
+		ws.GET("/namespace/{namespace}/user/{id}").
+			Param(restful.PathParameter("namespace", "namespace")).
+			Param(restful.PathParameter("id", "user ID")).
+			To(func(request *restful.Request, response *restful.Response) {
+				TargetUser(request, request.PathParameter("id"), request.PathParameter("namespace"))
+				AdditionalFields(request, map[string]interface{}{"test": "test"})
+				Info(request, 0, "success")
+				response.WriteHeader(http.StatusOK)
+
+				evt = getEvent(request)
+			}))
+
+	container := restful.NewContainer()
+	container.Add(ws)
+
+	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req.Header.Set("X-Forwarded-For", "8.8.8.8")
+
+	resp := httptest.NewRecorder()
+	container.ServeHTTP(resp, req)
+
+	assert.Equal(t, "test", evt.Realm)
+	assert.Equal(t, "abc", evt.TargetNamespace)
+	assert.Equal(t, "def", evt.TargetUserID)
+	assert.Equal(t, "8.8.8.8", evt.SourceIP)
+	assert.Equal(t, []interface{}{"success"}, evt.message)
+	assert.Equal(t, logrus.InfoLevel, evt.level)
+	assert.Contains(t, evt.additionalFields, "test")
+}
+
+// nolint: dupl // most part of the test is identical
+func TestInfoLogWithJWTClaims(t *testing.T) {
+	ws := new(restful.WebService)
+	extract := func(req *restful.Request) (userID string, clientID string, namespace string) {
+		claims := iamAuth.RetrieveJWTClaims(req)
+		if claims != nil {
+			return claims.Subject, claims.Audience, claims.Namespace
+		}
+		return "", "", ""
+	}
+	ws.Filter(Log("test", extract))
+
+	var evt *event
+	ws.Route(
+		ws.GET("/namespace/{namespace}/user/{id}").
+			Param(restful.PathParameter("namespace", "namespace")).
+			Param(restful.PathParameter("id", "user ID")).
+			To(func(request *restful.Request, response *restful.Response) {
+				TargetUser(request, request.PathParameter("id"), request.PathParameter("namespace"))
+
+				request.SetAttribute("JWTClaims", &iam.JWTClaims{
+					Namespace: "testNamespace",
+					StandardClaims: jwt.StandardClaims{
+						Audience: "testClientID",
+						Subject:  "testUserID",
+					},
+				})
+
+				AdditionalFields(request, map[string]interface{}{"test": "test"})
+				Info(request, 99, "success")
+				response.WriteHeader(http.StatusOK)
+
+				evt = getEvent(request)
+			}))
+
+	container := restful.NewContainer()
+	container.Add(ws)
+
+	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req.Header.Set("X-Forwarded-For", "8.8.8.8")
+
+	resp := httptest.NewRecorder()
+	container.ServeHTTP(resp, req)
+
+	assert.Equal(t, "test", evt.Realm)
+	assert.Equal(t, "abc", evt.TargetNamespace)
+	assert.Equal(t, "def", evt.TargetUserID)
+	assert.Equal(t, "8.8.8.8", evt.SourceIP)
+	assert.Equal(t, "testUserID", evt.UserID)
+	assert.Equal(t, "testClientID", evt.ClientID)
+	assert.Equal(t, "testNamespace", evt.Namespace)
+
+	assert.Equal(t, 99, evt.ID)
+	assert.Equal(t, []interface{}{"success"}, evt.message)
+	assert.Equal(t, logrus.InfoLevel, evt.level)
+	assert.Contains(t, evt.additionalFields, "test")
 }
