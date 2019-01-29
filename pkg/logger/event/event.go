@@ -17,7 +17,6 @@
 package event
 
 import (
-	"github.com/AccelByte/go-restful-plugins/pkg/auth/iam"
 	"github.com/AccelByte/public-source-ip"
 	"github.com/emicklei/go-restful"
 	"github.com/fatih/structs"
@@ -44,8 +43,16 @@ type event struct {
 	additionalFields map[string]interface{} `structs:"-"`
 }
 
-// Log is a filter that will log incoming request with Common Log Format
-func Log(realm string) restful.FilterFunction {
+// ExtractAttribute is a function to extract userID, clientID and namespace from restful.Request
+type ExtractAttribute func(req *restful.Request) (userID string, clientID string, namespace string)
+
+// ExtractNull is null function for extracting attribute
+var ExtractNull ExtractAttribute = func(_ *restful.Request) (userID string, clientID string, namespace string) {
+	return "", "", ""
+}
+
+// Log is a filter that will log incoming request with AccelByte's Event Log Format
+func Log(realm string, fn ExtractAttribute) restful.FilterFunction {
 	return func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
 		evt := &event{
 			LogType:  eventType,
@@ -61,12 +68,7 @@ func Log(realm string) restful.FilterFunction {
 			return
 		}
 
-		claims := iam.RetrieveJWTClaims(req)
-		if claims != nil {
-			evt.UserID = claims.Subject
-			evt.Namespace = claims.Namespace
-			evt.ClientID = claims.Audience
-		}
+		evt.UserID, evt.ClientID, evt.Namespace = fn(req)
 
 		fields := structs.Map(req.Attribute(eventLogAttribute))
 		for key, value := range evt.additionalFields {
