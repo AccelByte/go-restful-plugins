@@ -108,3 +108,15 @@ event.AdditionalFields(req *restful.Request, fields map[string]interface{})
 ```
 
 Pay attention on the field key name not to overwrite the existing default fields.
+
+### Timestamp format
+
+By importing this package, it will set the logrus timestamp for entire service to use RFC3339 in millisecond precision 
+and will force the timezone to be UTC. This timestamp format is required for the AccelByte Event Log service.
+
+However if you want to use your own timestamp format, you can override it by calling `logrus.SetFormatter` in the 
+`main()` function of your code before writing any logs.
+This is the example of setting timestamp format to use `RFC3339Nano`.
+```go
+logrus.SetFormatter(&logrus.TextFormatter{TimestampFormat: time.RFC3339Nano})
+```
