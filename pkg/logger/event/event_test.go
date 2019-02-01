@@ -19,7 +19,9 @@ package event
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	iamAuth "github.com/AccelByte/go-restful-plugins/pkg/auth/iam"
 	"github.com/AccelByte/iam-go-sdk"
@@ -276,4 +278,31 @@ func TestInfoLogWithJWTClaims(t *testing.T) {
 	assert.Equal(t, []interface{}{"success"}, evt.message)
 	assert.Equal(t, logrus.InfoLevel, evt.level)
 	assert.Contains(t, evt.additionalFields, "test")
+}
+
+func TestFormatUTC(t *testing.T) {
+	timeFormat := "2006-01-02T15:04:05.999Z07:00"
+	timeSample := "2019-01-02T12:34:56.789+07:00"
+	timeLogSample, _ := time.Parse(timeFormat, timeSample) // nolint: gosec // ignore error in test
+
+	sampleLog := &logrus.Entry{
+		Time: timeLogSample,
+	}
+
+	out, err := UTCFormatter{&logrus.TextFormatter{TimestampFormat: millisecondTimeFormat}}.Format(sampleLog)
+
+	parts := strings.Split(string(out), " ")
+	if len(parts) <= 0 {
+		assert.FailNow(t, "log parts can't be zero")
+	}
+	var timeString string
+	for _, part := range parts {
+		fields := strings.Split(part, "=")
+		if fields[0] == "time" {
+			timeString = fields[1]
+		}
+	}
+
+	assert.Nil(t, err, "error should be nil")
+	assert.Equal(t, "\"2019-01-02T05:34:56.789Z\"", timeString, "time string is not equal")
 }

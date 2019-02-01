@@ -24,8 +24,9 @@ import (
 )
 
 const (
-	eventLogAttribute = "EventLog"
-	eventType         = "event"
+	eventLogAttribute     = "EventLog"
+	eventType             = "event"
+	millisecondTimeFormat = "2006-01-02T15:04:05.999Z07:00"
 )
 
 type event struct {
@@ -49,6 +50,21 @@ type ExtractAttribute func(req *restful.Request) (userID string, clientID string
 // ExtractNull is null function for extracting attribute
 var ExtractNull ExtractAttribute = func(_ *restful.Request) (userID string, clientID string, namespace string) {
 	return "", "", ""
+}
+
+func init() {
+	logrus.SetFormatter(UTCFormatter{&logrus.TextFormatter{TimestampFormat: millisecondTimeFormat}})
+}
+
+// UTCFormatter implements logrus Formatter for custom log format
+type UTCFormatter struct {
+	logrus.Formatter
+}
+
+// Format implements logrus Format for forcing time to UTC
+func (formatter UTCFormatter) Format(log *logrus.Entry) ([]byte, error) {
+	log.Time = log.Time.UTC()
+	return formatter.Formatter.Format(log)
 }
 
 // Log is a filter that will log incoming request with AccelByte's Event Log Format
