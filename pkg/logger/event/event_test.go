@@ -179,7 +179,6 @@ func TestErrorLog(t *testing.T) {
 				AdditionalFields(request, map[string]interface{}{"test": "test"})
 				Topic(request, "get_user")
 				Action(request, "user:get")
-				Privacy(request, true)
 				Error(request, 99, 53, 5, "get_user_msg")
 				response.WriteHeader(http.StatusOK)
 
@@ -200,7 +199,6 @@ func TestErrorLog(t *testing.T) {
 	assert.Equal(t, []string{"def"}, evt.TargetUserIDs)
 	assert.Equal(t, "get_user", evt.topic)
 	assert.Equal(t, "user:get", evt.Action)
-	assert.Equal(t, true, evt.privacy)
 	assert.Equal(t, 99, evt.ID)
 	assert.Equal(t, 53, evt.Type)
 	assert.Equal(t, 5, evt.EventLevel)

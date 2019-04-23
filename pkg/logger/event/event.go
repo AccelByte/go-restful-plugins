@@ -51,7 +51,6 @@ type event struct {
 	LogType          string                 `structs:"log_type"`
 	Message          string                 `structs:"msg"`
 	level            logrus.Level           `structs:"-"`
-	privacy          bool                   `structs:"privacy"`
 }
 
 // ExtractAttribute is a function to extract userID, clientID and namespace from restful.Request
@@ -145,13 +144,6 @@ func Topic(req *restful.Request, topic string) {
 func Action(req *restful.Request, action string) {
 	if evt := getEvent(req); evt != nil {
 		evt.Action = action
-	}
-}
-
-// Privacy inject the privacy to current event in the request
-func Privacy(req *restful.Request, privacy bool) {
-	if evt := getEvent(req); evt != nil {
-		evt.privacy = privacy
 	}
 }
 
