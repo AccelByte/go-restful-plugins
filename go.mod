@@ -5,8 +5,6 @@ go 1.12
 require (
 	github.com/AccelByte/go-jose v2.1.4+incompatible
 	github.com/AccelByte/iam-go-sdk v1.0.3
-	github.com/AccelByte/public-source-ip v0.0.0-20180313061129-4fdcb9f19c77
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/emicklei/go-restful v2.9.3+incompatible
 	github.com/fatih/structs v1.1.0
 	github.com/json-iterator/go v1.1.6 // indirect

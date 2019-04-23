@@ -17,7 +17,6 @@
 package event
 
 import (
-	public_source_ip "github.com/AccelByte/public-source-ip"
 	"github.com/emicklei/go-restful"
 	"github.com/fatih/structs"
 	"github.com/sirupsen/logrus"
@@ -25,31 +24,44 @@ import (
 
 const (
 	eventLogAttribute     = "EventLog"
-	eventType             = "event"
 	millisecondTimeFormat = "2006-01-02T15:04:05.999Z07:00"
+	logType               = "event"
+	traceIDKey            = "X-Ab-TraceID"
+	sessionIDKey          = "X-Ab-SessionID"
 )
 
 type event struct {
 	ID               int                    `structs:"event_id"`
+	Type             int                    `structs:"event_type"`
+	EventLevel       int                    `structs:"event_level"`
+	Resp             int                    `structs:"resp"`
+	Service          string                 `structs:"service"`
+	ClientIDs        []string               `structs:"client_ids"`
 	UserID           string                 `structs:"user_id"`
+	TargetUserIDs    []string               `structs:"target_user_ids"`
 	Namespace        string                 `structs:"namespace"`
-	ClientID         string                 `structs:"client_id"`
-	TargetUserID     string                 `structs:"target_user_id"`
 	TargetNamespace  string                 `structs:"target_namespace"`
-	Realm            string                 `structs:"realm"`
-	SourceIP         string                 `structs:"source_ip"`
-	LogType          string                 `structs:"log_type"`
-	level            logrus.Level           `structs:"-"`
-	message          []interface{}          `structs:"-"`
+	TraceID          string                 `structs:"trace_id"`
+	SessionID        string                 `structs:"session_id"`
 	additionalFields map[string]interface{} `structs:"-"`
+	Realm            string                 `structs:"realm"`
+	topic            string                 `structs:"-"`
+	Action           string                 `structs:"action"`
+	Status           string                 `structs:"status"`
+	LogType          string                 `structs:"log_type"`
+	Message          string                 `structs:"msg"`
+	level            logrus.Level           `structs:"-"`
+	privacy          bool                   `structs:"privacy"`
 }
 
 // ExtractAttribute is a function to extract userID, clientID and namespace from restful.Request
-type ExtractAttribute func(req *restful.Request) (userID string, clientID string, namespace string)
+type extractAttribute func(req *restful.Request) (userID string, clientID []string, namespace string, traceID string,
+	sessionID string)
 
-// ExtractNull is null function for extracting attribute
-var ExtractNull ExtractAttribute = func(_ *restful.Request) (userID string, clientID string, namespace string) {
-	return "", "", ""
+// extractNull is null function for extracting attribute
+var extractNull extractAttribute = func(req *restful.Request) (userID string, clientID []string, namespace string,
+	traceID string, sessionID string) {
+	return "", []string{}, "", req.HeaderParameter(traceIDKey), req.HeaderParameter(sessionIDKey)
 }
 
 func init() {
@@ -68,13 +80,12 @@ func (formatter UTCFormatter) Format(log *logrus.Entry) ([]byte, error) {
 }
 
 // Log is a filter that will log incoming request with AccelByte's Event Log Format
-func Log(realm string, fn ExtractAttribute) restful.FilterFunction {
+func Log(realm string, service string, fn extractAttribute) restful.FilterFunction {
 	return func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
 		evt := &event{
-			LogType:  eventType,
-			Realm:    realm,
-			SourceIP: public_source_ip.PublicIP(req.Request),
-			level:    logrus.InfoLevel,
+			Realm:   realm,
+			Service: service,
+			LogType: logType,
 		}
 		req.SetAttribute(eventLogAttribute, evt)
 
@@ -84,7 +95,7 @@ func Log(realm string, fn ExtractAttribute) restful.FilterFunction {
 			return
 		}
 
-		evt.UserID, evt.ClientID, evt.Namespace = fn(req)
+		evt.UserID, evt.ClientIDs, evt.Namespace, evt.TraceID, evt.SessionID = fn(req)
 
 		fields := structs.Map(req.Attribute(eventLogAttribute))
 		for key, value := range evt.additionalFields {
@@ -95,15 +106,15 @@ func Log(realm string, fn ExtractAttribute) restful.FilterFunction {
 
 		switch evt.level {
 		case logrus.FatalLevel:
-			log.Fatal(evt.message...)
+			log.Fatal(evt.Message)
 		case logrus.ErrorLevel:
-			log.Error(evt.message...)
+			log.Error(evt.Message)
 		case logrus.WarnLevel:
-			log.Warn(evt.message...)
+			log.Warn(evt.Message)
 		case logrus.DebugLevel:
-			log.Debug(evt.message...)
+			log.Debug(evt.Message)
 		default:
-			log.Info(evt.message...)
+			log.Info()
 		}
 	}
 }
@@ -111,7 +122,7 @@ func Log(realm string, fn ExtractAttribute) restful.FilterFunction {
 // TargetUser injects the target user ID and namespace to current event in the request
 func TargetUser(req *restful.Request, id, namespace string) {
 	if evt := getEvent(req); evt != nil {
-		evt.TargetUserID = id
+		evt.TargetUserIDs = []string{id}
 		evt.TargetNamespace = namespace
 	}
 }
@@ -123,48 +134,79 @@ func AdditionalFields(req *restful.Request, fields map[string]interface{}) {
 	}
 }
 
+// Topic inject the topic to current event in the request
+func Topic(req *restful.Request, topic string) {
+	if evt := getEvent(req); evt != nil {
+		evt.topic = topic
+	}
+}
+
+// Action inject the topic to current event in the request
+func Action(req *restful.Request, action string) {
+	if evt := getEvent(req); evt != nil {
+		evt.Action = action
+	}
+}
+
+// Privacy inject the privacy to current event in the request
+func Privacy(req *restful.Request, privacy bool) {
+	if evt := getEvent(req); evt != nil {
+		evt.privacy = privacy
+	}
+}
+
 // Debug sets the event level to debug along with the event ID and message
-func Debug(req *restful.Request, eventID int, message ...interface{}) {
+func Debug(req *restful.Request, eventID int, eventType int, eventLevel int, msg string) {
 	if evt := getEvent(req); evt != nil {
 		evt.ID = eventID
-		evt.message = message
+		evt.Type = eventType
+		evt.EventLevel = eventLevel
 		evt.level = logrus.DebugLevel
+		evt.Message = msg
 	}
 }
 
 // Info sets the event level to info along with the event ID and message
-func Info(req *restful.Request, eventID int, message ...interface{}) {
+func Info(req *restful.Request, eventID int, eventType int, eventLevel int, msg string) {
 	if evt := getEvent(req); evt != nil {
 		evt.ID = eventID
-		evt.message = message
+		evt.Type = eventType
+		evt.EventLevel = eventLevel
 		evt.level = logrus.InfoLevel
+		evt.Message = msg
 	}
 }
 
 // Warn sets the event level to warn along with the event ID and message
-func Warn(req *restful.Request, eventID int, message ...interface{}) {
+func Warn(req *restful.Request, eventID int, eventType int, eventLevel int, msg string) {
 	if evt := getEvent(req); evt != nil {
 		evt.ID = eventID
-		evt.message = message
+		evt.Type = eventType
+		evt.EventLevel = eventLevel
 		evt.level = logrus.WarnLevel
+		evt.Message = msg
 	}
 }
 
 // Error sets the event level to error along with the event ID and message
-func Error(req *restful.Request, eventID int, message ...interface{}) {
+func Error(req *restful.Request, eventID int, eventType int, eventLevel int, msg string) {
 	if evt := getEvent(req); evt != nil {
 		evt.ID = eventID
-		evt.message = message
+		evt.Type = eventType
+		evt.EventLevel = eventLevel
 		evt.level = logrus.ErrorLevel
+		evt.Message = msg
 	}
 }
 
 // Fatal sets the event level to fatal along with the event ID and message
-func Fatal(req *restful.Request, eventID int, message ...interface{}) {
+func Fatal(req *restful.Request, eventID int, eventType int, eventLevel int, msg string) {
 	if evt := getEvent(req); evt != nil {
 		evt.ID = eventID
-		evt.message = message
+		evt.Type = eventType
+		evt.EventLevel = eventLevel
 		evt.level = logrus.FatalLevel
+		evt.Message = msg
 	}
 }
 
