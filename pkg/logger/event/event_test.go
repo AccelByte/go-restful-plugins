@@ -35,7 +35,7 @@ import (
 // nolint: dupl // most part of the test is identical
 func TestInfoLog(t *testing.T) {
 	ws := new(restful.WebService)
-	ws.Filter(Log("test", ExtractNull))
+	ws.Filter(Log("test", "iam", extractNull))
 
 	var evt *event
 
@@ -46,7 +46,8 @@ func TestInfoLog(t *testing.T) {
 			To(func(request *restful.Request, response *restful.Response) {
 				TargetUser(request, request.PathParameter("id"), request.PathParameter("namespace"))
 				AdditionalFields(request, map[string]interface{}{"test": "test"})
-				Info(request, 99, "success")
+				Topic(request, "get_user")
+				Info(request, 99, 50, 3, "get_user_msg")
 				response.WriteHeader(http.StatusOK)
 
 				evt = getEvent(request)
@@ -57,16 +58,23 @@ func TestInfoLog(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
+	req.Header.Set(traceIDKey, "123456789")
+	req.Header.Set(sessionIDKey, "11223344")
 
 	resp := httptest.NewRecorder()
 	container.ServeHTTP(resp, req)
 
 	assert.Equal(t, "test", evt.Realm)
+	assert.Equal(t, "iam", evt.Service)
 	assert.Equal(t, "abc", evt.TargetNamespace)
-	assert.Equal(t, "def", evt.TargetUserID)
-	assert.Equal(t, "8.8.8.8", evt.SourceIP)
+	assert.Equal(t, []string{"def"}, evt.TargetUserIDs)
+	assert.Equal(t, "get_user", evt.topic)
 	assert.Equal(t, 99, evt.ID)
-	assert.Equal(t, []interface{}{"success"}, evt.message)
+	assert.Equal(t, 50, evt.Type)
+	assert.Equal(t, 3, evt.EventLevel)
+	assert.Equal(t, "get_user_msg", evt.Message)
+	assert.Equal(t, "123456789", evt.TraceID)
+	assert.Equal(t, "11223344", evt.SessionID)
 	assert.Equal(t, logrus.InfoLevel, evt.level)
 	assert.Contains(t, evt.additionalFields, "test")
 }
@@ -74,7 +82,7 @@ func TestInfoLog(t *testing.T) {
 // nolint: dupl // most part of the test is identical
 func TestWarnLog(t *testing.T) {
 	ws := new(restful.WebService)
-	ws.Filter(Log("test", ExtractNull))
+	ws.Filter(Log("test", "iam", extractNull))
 
 	var evt *event
 
@@ -85,7 +93,8 @@ func TestWarnLog(t *testing.T) {
 			To(func(request *restful.Request, response *restful.Response) {
 				TargetUser(request, request.PathParameter("id"), request.PathParameter("namespace"))
 				AdditionalFields(request, map[string]interface{}{"test": "test"})
-				Warn(request, 99, "success")
+				Topic(request, "get_user")
+				Warn(request, 99, 51, 4, "get_user_msg")
 				response.WriteHeader(http.StatusOK)
 
 				evt = getEvent(request)
@@ -100,11 +109,14 @@ func TestWarnLog(t *testing.T) {
 	container.ServeHTTP(resp, req)
 
 	assert.Equal(t, "test", evt.Realm)
+	assert.Equal(t, "iam", evt.Service)
 	assert.Equal(t, "abc", evt.TargetNamespace)
-	assert.Equal(t, "def", evt.TargetUserID)
-	assert.Equal(t, "8.8.8.8", evt.SourceIP)
+	assert.Equal(t, []string{"def"}, evt.TargetUserIDs)
+	assert.Equal(t, "get_user", evt.topic)
 	assert.Equal(t, 99, evt.ID)
-	assert.Equal(t, []interface{}{"success"}, evt.message)
+	assert.Equal(t, 51, evt.Type)
+	assert.Equal(t, 4, evt.EventLevel)
+	assert.Equal(t, "get_user_msg", evt.Message)
 	assert.Equal(t, logrus.WarnLevel, evt.level)
 	assert.Contains(t, evt.additionalFields, "test")
 }
@@ -112,7 +124,7 @@ func TestWarnLog(t *testing.T) {
 // nolint: dupl // most part of the test is identical
 func TestDebugLog(t *testing.T) {
 	ws := new(restful.WebService)
-	ws.Filter(Log("test", ExtractNull))
+	ws.Filter(Log("test", "iam", extractNull))
 
 	var evt *event
 
@@ -123,7 +135,8 @@ func TestDebugLog(t *testing.T) {
 			To(func(request *restful.Request, response *restful.Response) {
 				TargetUser(request, request.PathParameter("id"), request.PathParameter("namespace"))
 				AdditionalFields(request, map[string]interface{}{"test": "test"})
-				Debug(request, 99, "success")
+				Topic(request, "get_user")
+				Debug(request, 99, 52, 3, "get_user_msg")
 				response.WriteHeader(http.StatusOK)
 
 				evt = getEvent(request)
@@ -138,11 +151,14 @@ func TestDebugLog(t *testing.T) {
 	container.ServeHTTP(resp, req)
 
 	assert.Equal(t, "test", evt.Realm)
+	assert.Equal(t, "iam", evt.Service)
 	assert.Equal(t, "abc", evt.TargetNamespace)
-	assert.Equal(t, "def", evt.TargetUserID)
-	assert.Equal(t, "8.8.8.8", evt.SourceIP)
+	assert.Equal(t, []string{"def"}, evt.TargetUserIDs)
+	assert.Equal(t, "get_user", evt.topic)
 	assert.Equal(t, 99, evt.ID)
-	assert.Equal(t, []interface{}{"success"}, evt.message)
+	assert.Equal(t, 52, evt.Type)
+	assert.Equal(t, 3, evt.EventLevel)
+	assert.Equal(t, "get_user_msg", evt.Message)
 	assert.Equal(t, logrus.DebugLevel, evt.level)
 	assert.Contains(t, evt.additionalFields, "test")
 }
@@ -150,7 +166,7 @@ func TestDebugLog(t *testing.T) {
 // nolint: dupl // most part of the test is identical
 func TestErrorLog(t *testing.T) {
 	ws := new(restful.WebService)
-	ws.Filter(Log("test", ExtractNull))
+	ws.Filter(Log("test", "iam", extractNull))
 
 	var evt *event
 
@@ -161,7 +177,10 @@ func TestErrorLog(t *testing.T) {
 			To(func(request *restful.Request, response *restful.Response) {
 				TargetUser(request, request.PathParameter("id"), request.PathParameter("namespace"))
 				AdditionalFields(request, map[string]interface{}{"test": "test"})
-				Error(request, 99, "success")
+				Topic(request, "get_user")
+				Action(request, "user:get")
+				Privacy(request, true)
+				Error(request, 99, 53, 5, "get_user_msg")
 				response.WriteHeader(http.StatusOK)
 
 				evt = getEvent(request)
@@ -176,11 +195,16 @@ func TestErrorLog(t *testing.T) {
 	container.ServeHTTP(resp, req)
 
 	assert.Equal(t, "test", evt.Realm)
+	assert.Equal(t, "iam", evt.Service)
 	assert.Equal(t, "abc", evt.TargetNamespace)
-	assert.Equal(t, "def", evt.TargetUserID)
-	assert.Equal(t, "8.8.8.8", evt.SourceIP)
+	assert.Equal(t, []string{"def"}, evt.TargetUserIDs)
+	assert.Equal(t, "get_user", evt.topic)
+	assert.Equal(t, "user:get", evt.Action)
+	assert.Equal(t, true, evt.privacy)
 	assert.Equal(t, 99, evt.ID)
-	assert.Equal(t, []interface{}{"success"}, evt.message)
+	assert.Equal(t, 53, evt.Type)
+	assert.Equal(t, 5, evt.EventLevel)
+	assert.Equal(t, "get_user_msg", evt.Message)
 	assert.Equal(t, logrus.ErrorLevel, evt.level)
 	assert.Contains(t, evt.additionalFields, "test")
 }
@@ -188,7 +212,7 @@ func TestErrorLog(t *testing.T) {
 // nolint: dupl // most part of the test is identical
 func TestWithNoEventID(t *testing.T) {
 	ws := new(restful.WebService)
-	ws.Filter(Log("test", ExtractNull))
+	ws.Filter(Log("test", "iam", extractNull))
 
 	var evt *event
 
@@ -199,7 +223,9 @@ func TestWithNoEventID(t *testing.T) {
 			To(func(request *restful.Request, response *restful.Response) {
 				TargetUser(request, request.PathParameter("id"), request.PathParameter("namespace"))
 				AdditionalFields(request, map[string]interface{}{"test": "test"})
-				Info(request, 0, "success")
+				Topic(request, "get_user")
+				Action(request, "user:get")
+				Info(request, 0, 54, 3, "get_user_msg")
 				response.WriteHeader(http.StatusOK)
 
 				evt = getEvent(request)
@@ -215,25 +241,31 @@ func TestWithNoEventID(t *testing.T) {
 	container.ServeHTTP(resp, req)
 
 	assert.Equal(t, "test", evt.Realm)
+	assert.Equal(t, "iam", evt.Service)
 	assert.Equal(t, "abc", evt.TargetNamespace)
-	assert.Equal(t, "def", evt.TargetUserID)
-	assert.Equal(t, "8.8.8.8", evt.SourceIP)
-	assert.Equal(t, []interface{}{"success"}, evt.message)
+	assert.Equal(t, []string{"def"}, evt.TargetUserIDs)
+	assert.Equal(t, "get_user", evt.topic)
+	assert.Equal(t, "user:get", evt.Action)
+	assert.Equal(t, 54, evt.Type)
+	assert.Equal(t, 3, evt.EventLevel)
 	assert.Equal(t, logrus.InfoLevel, evt.level)
+	assert.Equal(t, "get_user_msg", evt.Message)
 	assert.Contains(t, evt.additionalFields, "test")
 }
 
-// nolint: dupl // most part of the test is identical
+//nolint: dupl // most part of the test is identical
 func TestInfoLogWithJWTClaims(t *testing.T) {
 	ws := new(restful.WebService)
-	extract := func(req *restful.Request) (userID string, clientID string, namespace string) {
+	extract := func(req *restful.Request) (userID string, clientID []string, namespace string, traceID string,
+		sessionID string) {
 		claims := iamAuth.RetrieveJWTClaims(req)
 		if claims != nil {
-			return claims.Subject, strings.Join(claims.Audience, ","), claims.Namespace
+			return claims.Subject, claims.Audience, claims.Namespace,
+				req.HeaderParameter(traceIDKey), req.HeaderParameter(sessionIDKey)
 		}
-		return "", "", ""
+		return "", []string{}, "", req.HeaderParameter(traceIDKey), req.HeaderParameter(sessionIDKey)
 	}
-	ws.Filter(Log("test", extract))
+	ws.Filter(Log("test", "iam", extract))
 
 	var evt *event
 	ws.Route(
@@ -246,13 +278,14 @@ func TestInfoLogWithJWTClaims(t *testing.T) {
 				request.SetAttribute("JWTClaims", &iam.JWTClaims{
 					Namespace: "testNamespace",
 					Claims: jwt.Claims{
-						Audience: jwt.Audience{"testClientID"},
+						Audience: []string{"testClientID"},
 						Subject:  "testUserID",
 					},
 				})
-
 				AdditionalFields(request, map[string]interface{}{"test": "test"})
-				Info(request, 99, "success")
+				Topic(request, "get_user")
+				Action(request, "user:get")
+				Info(request, 99, 55, 3, "get_user_msg")
 				response.WriteHeader(http.StatusOK)
 
 				evt = getEvent(request)
@@ -268,16 +301,20 @@ func TestInfoLogWithJWTClaims(t *testing.T) {
 	container.ServeHTTP(resp, req)
 
 	assert.Equal(t, "test", evt.Realm)
+	assert.Equal(t, "iam", evt.Service)
 	assert.Equal(t, "abc", evt.TargetNamespace)
-	assert.Equal(t, "def", evt.TargetUserID)
-	assert.Equal(t, "8.8.8.8", evt.SourceIP)
+	assert.Equal(t, []string{"def"}, evt.TargetUserIDs)
+	assert.Equal(t, "get_user", evt.topic)
+	assert.Equal(t, "user:get", evt.Action)
 	assert.Equal(t, "testUserID", evt.UserID)
-	assert.Equal(t, "testClientID", evt.ClientID)
+	assert.Equal(t, []string{"testClientID"}, evt.ClientIDs)
 	assert.Equal(t, "testNamespace", evt.Namespace)
 
 	assert.Equal(t, 99, evt.ID)
-	assert.Equal(t, []interface{}{"success"}, evt.message)
+	assert.Equal(t, 55, evt.Type)
+	assert.Equal(t, 3, evt.EventLevel)
 	assert.Equal(t, logrus.InfoLevel, evt.level)
+	assert.Equal(t, "get_user_msg", evt.Message)
 	assert.Contains(t, evt.additionalFields, "test")
 }
 

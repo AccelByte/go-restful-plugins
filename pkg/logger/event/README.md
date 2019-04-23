@@ -14,7 +14,7 @@ import "github.com/AccelByte/go-restful-plugins/pkg/logger/event"
 
 ```go
 ws := new(restful.WebService)
-ws.Filter(event.Log("realm", event.ExtractNull))
+ws.Filter(event.Log("realm", "serviceName", event.extractNull))
 ```
 
 ### Log specific endpoint
@@ -22,7 +22,7 @@ ws.Filter(event.Log("realm", event.ExtractNull))
 ```go
 ws := new(restful.WebService)
 ws.Route(ws.GET("/user/{id}").
-    Filter(event.Log("realm", event.ExtractNull)).
+    Filter(event.Log("realm", "serviceName"", event.extractNull)).
     To(func(request *restful.Request, response *restful.Response) {
 }))
 ```
@@ -33,13 +33,15 @@ If you are using [IAM Auth Filter](https://github.com/AccelByte/go-restful-plugi
 you can use this `extractFunc` for extracting `iam.JWTClaims` from the `restful.Request` to get the actor's user ID 
 and namespace.
 ```go
-extractFunc := func(req *restful.Request) (userID string, clientID string, namespace string) {
-    claims := iam.RetrieveJWTClaims(req)
-    if claims != nil {
-        return claims.Subject, claims.Audience, claims.Namespace
-    }
-    return "", "", ""
-}
+extractFunc := func(req *restful.Request) (userID string, clientID []string, namespace string, traceID string, 
+	sessionID string) {
+		claims := iamAuth.RetrieveJWTClaims(req)
+		if claims != nil {
+			return claims.Subject, claims.Audience, claims.Namespace,
+				req.HeaderParameter("X-Ab-TraceID"), req.HeaderParameter("X-Ab-SessionID")
+		}
+		return "", []string{}, "", req.HeaderParameter("X-Ab-TraceID"), req.HeaderParameter("X-Ab-SessionID")
+		}
 ```
 
 However, if you are using your own auth filter, you need to set the attributes to the request when registering the 
@@ -71,7 +73,7 @@ extractFunc := func(req *restful.Request) (userID string, clientID string, names
 
 ws := new(restful.WebService)
 ws.Route(ws.GET("/user/{id}").
-    Filter(event.Log("realm", extractFunc)).
+    Filter(event.Log("realm", "serviceName", extractFunc)).
     To(func(request *restful.Request, response *restful.Response) {
 }))
 ```
@@ -90,11 +92,11 @@ event.TargetUser(req *restful.Request, id, namespace string)
 To put event ID & level, call one of:
 
 ```go
-event.Debug(req *restful.Request, eventID int, message ...string)
-event.Info(req *restful.Request, eventID int, message ...string)
-event.Warn(req *restful.Request, eventID int, message ...string)
-event.Error(req *restful.Request, eventID int, message ...string)
-event.Fatal(req *restful.Request, eventID int, message ...string)
+event.Debug(req *restful.Request, eventID int, eventType int, eventLevel int)
+event.Info(req *restful.Request, eventID int, eventType int, eventLevel int)
+event.Warn(req *restful.Request, eventID int, eventType int, eventLevel int)
+event.Error(req *restful.Request, eventID int, eventType int, eventLevel int)
+event.Fatal(req *restful.Request, eventID int, eventType int, eventLevel int)
 ```
 
 You can put a log message there too.

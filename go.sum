@@ -4,13 +4,9 @@ github.com/AccelByte/go-jose v2.1.4+incompatible h1:jn3BJ0HZAUskWJ042CJGgFXDAwhT
 github.com/AccelByte/go-jose v2.1.4+incompatible/go.mod h1:X9vkgMrcPILJ7qhUruCaKHnslOhBTTpsC5DjiFpmmSc=
 github.com/AccelByte/iam-go-sdk v1.0.3 h1:VLpYiW1iDX3Mh3qiphyNRxtNwmPeigVvAI8V8ZOB484=
 github.com/AccelByte/iam-go-sdk v1.0.3/go.mod h1:oW6iG/HJuNSaTI5La/FL40s3N6pafeP8B8sLu/KrvEg=
-github.com/AccelByte/public-source-ip v0.0.0-20180313061129-4fdcb9f19c77 h1:X0SWcIav1sw/1m6F2zj6LqhgThOWlkAA1GEwmbLYF+Y=
-github.com/AccelByte/public-source-ip v0.0.0-20180313061129-4fdcb9f19c77/go.mod h1:L7zIgt3UaXkGH7NoKFCbxPdWZOVwn+d6uW/5yYRXtnQ=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/dgrijalva/jwt-go v3.2.0+incompatible h1:7qlOGliEKZXTDg6OTjfoBKDXWrumCAMpl/TFQ4/5kLM=
-github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
 github.com/emicklei/go-restful v2.9.3+incompatible h1:2OwhVdhtzYUp5P5wuGsVDPagKSRd9JK72sJCHVCXh5g=
 github.com/emicklei/go-restful v2.9.3+incompatible/go.mod h1:otzb+WCGbkyDHkqmQmT5YD2WR4BBwUdeQoFo8l/7tVs=
 github.com/fatih/structs v1.1.0 h1:Q7juDM0QtcnhCpeyLGQKyg4TOIghuNXrkL32pHAUMxo=
