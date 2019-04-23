@@ -17,7 +17,7 @@
 package event
 
 import (
-	"github.com/AccelByte/public-source-ip"
+	public_source_ip "github.com/AccelByte/public-source-ip"
 	"github.com/emicklei/go-restful"
 	"github.com/fatih/structs"
 	"github.com/sirupsen/logrus"

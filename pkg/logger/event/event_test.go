@@ -23,12 +23,13 @@ import (
 	"testing"
 	"time"
 
-	iamAuth "github.com/AccelByte/go-restful-plugins/pkg/auth/iam"
+	"github.com/AccelByte/go-jose/jwt"
 	"github.com/AccelByte/iam-go-sdk"
-	"github.com/dgrijalva/jwt-go"
 	"github.com/emicklei/go-restful"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+
+	iamAuth "github.com/AccelByte/go-restful-plugins/pkg/auth/iam"
 )
 
 // nolint: dupl // most part of the test is identical
@@ -228,7 +229,7 @@ func TestInfoLogWithJWTClaims(t *testing.T) {
 	extract := func(req *restful.Request) (userID string, clientID string, namespace string) {
 		claims := iamAuth.RetrieveJWTClaims(req)
 		if claims != nil {
-			return claims.Subject, claims.Audience, claims.Namespace
+			return claims.Subject, strings.Join(claims.Audience, ","), claims.Namespace
 		}
 		return "", "", ""
 	}
@@ -244,8 +245,8 @@ func TestInfoLogWithJWTClaims(t *testing.T) {
 
 				request.SetAttribute("JWTClaims", &iam.JWTClaims{
 					Namespace: "testNamespace",
-					StandardClaims: jwt.StandardClaims{
-						Audience: "testClientID",
+					Claims: jwt.Claims{
+						Audience: jwt.Audience{"testClientID"},
 						Subject:  "testUserID",
 					},
 				})
@@ -292,7 +293,7 @@ func TestFormatUTC(t *testing.T) {
 	out, err := UTCFormatter{&logrus.TextFormatter{TimestampFormat: millisecondTimeFormat}}.Format(sampleLog)
 
 	parts := strings.Split(string(out), " ")
-	if len(parts) <= 0 {
+	if len(parts) == 0 {
 		assert.FailNow(t, "log parts can't be zero")
 	}
 	var timeString string
