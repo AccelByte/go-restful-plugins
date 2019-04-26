@@ -58,8 +58,8 @@ func TestInfoLog(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
-	req.Header.Set(traceIDKey, "123456789")
-	req.Header.Set(sessionIDKey, "11223344")
+	req.Header.Set(TraceIDKey, "123456789")
+	req.Header.Set(SessionIDKey, "11223344")
 
 	resp := httptest.NewRecorder()
 	container.ServeHTTP(resp, req)
@@ -259,9 +259,9 @@ func TestInfoLogWithJWTClaims(t *testing.T) {
 		claims := iamAuth.RetrieveJWTClaims(req)
 		if claims != nil {
 			return claims.Subject, claims.Audience, claims.Namespace,
-				req.HeaderParameter(traceIDKey), req.HeaderParameter(sessionIDKey)
+				req.HeaderParameter(TraceIDKey), req.HeaderParameter(SessionIDKey)
 		}
-		return "", []string{}, "", req.HeaderParameter(traceIDKey), req.HeaderParameter(sessionIDKey)
+		return "", []string{}, "", req.HeaderParameter(TraceIDKey), req.HeaderParameter(SessionIDKey)
 	}
 	ws.Filter(Log("test", "iam", extract))
 

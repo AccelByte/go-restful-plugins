@@ -1,3 +1,7 @@
+Release v2.0.1 (2019-04-26)
+===========================
+- Export Trace `TraceIDKey` and Session `SessionIDKey` request header constants publicly
+
 Release v2.0.0 (2019-04-24)
 ===========================
 ### BREAKING CHANGES

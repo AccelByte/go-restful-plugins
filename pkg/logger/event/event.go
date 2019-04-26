@@ -26,8 +26,8 @@ const (
 	eventLogAttribute     = "EventLog"
 	millisecondTimeFormat = "2006-01-02T15:04:05.999Z07:00"
 	logType               = "event"
-	traceIDKey            = "X-Ab-TraceID"
-	sessionIDKey          = "X-Ab-SessionID"
+	TraceIDKey            = "X-Ab-TraceID"
+	SessionIDKey          = "X-Ab-SessionID"
 )
 
 type event struct {
@@ -60,7 +60,7 @@ type extractAttribute func(req *restful.Request) (userID string, clientID []stri
 // extractNull is null function for extracting attribute
 var extractNull extractAttribute = func(req *restful.Request) (userID string, clientID []string, namespace string,
 	traceID string, sessionID string) {
-	return "", []string{}, "", req.HeaderParameter(traceIDKey), req.HeaderParameter(sessionIDKey)
+	return "", []string{}, "", req.HeaderParameter(TraceIDKey), req.HeaderParameter(SessionIDKey)
 }
 
 func init() {
