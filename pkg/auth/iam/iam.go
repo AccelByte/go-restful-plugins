@@ -17,7 +17,9 @@
 package iam
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -35,6 +37,12 @@ type FilterOption func(req *restful.Request, iamClient iam.Client, claims *iam.J
 // Filter handles auth using filter
 type Filter struct {
 	iamClient iam.Client
+}
+
+// ErrorResponse is the generic structure for communicating errors from a REST endpoint.
+type ErrorResponse struct {
+	ErrorCode    int `json:",omitempty"`
+	ErrorMessage string
 }
 
 // NewFilter creates new Filter instance
@@ -97,7 +105,8 @@ func RetrieveJWTClaims(request *restful.Request) *iam.JWTClaims {
 func WithValidUser() FilterOption {
 	return func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error {
 		if claims.Subject == "" {
-			return restful.NewError(http.StatusForbidden, "access forbidden: non user access token")
+			return respondError(http.StatusForbidden, EIDWithValidUserNonUserAccessToken,
+				"access forbidden: non user access token")
 		}
 		return nil
 	}
@@ -112,10 +121,12 @@ func WithPermission(permission *iam.Permission) FilterOption {
 
 		valid, err := iamClient.ValidatePermission(claims, *permission, requiredPermissionResources)
 		if err != nil {
-			return restful.NewError(http.StatusInternalServerError, "unable to validate permission: "+err.Error())
+			return respondError(http.StatusInternalServerError, EIDWithPermissionUnableValidatePermission,
+				"unable to validate permission: "+err.Error())
 		}
 		if !valid {
-			return restful.NewError(http.StatusForbidden, "access forbidden: insufficient permission")
+			return respondError(http.StatusForbidden, EIDWithPermissionInsufficientPermission,
+				"access forbidden: insufficient permission")
 		}
 		return nil
 	}
@@ -126,10 +137,12 @@ func WithRole(role string) FilterOption {
 	return func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error {
 		valid, err := iamClient.ValidateRole(role, claims)
 		if err != nil {
-			return restful.NewError(http.StatusInternalServerError, "unable to validate role: "+err.Error())
+			return respondError(http.StatusInternalServerError, EIDWithRoleUnableValidateRole,
+				"unable to validate role: "+err.Error())
 		}
 		if !valid {
-			return restful.NewError(http.StatusForbidden, "access forbidden: insufficient permission")
+			return respondError(http.StatusForbidden, EIDWithRoleInsufficientPermission,
+				"access forbidden: insufficient permission")
 		}
 		return nil
 	}
@@ -140,10 +153,24 @@ func WithVerifiedEmail() FilterOption {
 	return func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error {
 		verified, err := iamClient.UserEmailVerificationStatus(claims)
 		if err != nil {
-			return restful.NewError(http.StatusInternalServerError, "unable to validate email status: "+err.Error())
+			return respondError(http.StatusInternalServerError, EIDWithVerifiedEmailUnableValidateEmailStatus,
+				"unable to validate email status: "+err.Error())
 		}
 		if !verified {
-			return restful.NewError(http.StatusForbidden, "access forbidden: insufficient permission")
+			return respondError(http.StatusForbidden, EIDWithVerifiedEmailInsufficientPermission,
+				"access forbidden: insufficient permission")
+		}
+		return nil
+	}
+}
+
+// WithValidAudienceScope filters request from a user with verified audience and scope only
+func WithValidAudienceScope(scope string) FilterOption {
+	return func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error {
+		err := iamClient.ValidateAudienceScope(claims, scope)
+		if err != nil {
+			return respondError(http.StatusUnauthorized, EIDWithValidAudienceScopeInvalidAudienceOrScope,
+				"invalid audience or scope")
 		}
 		return nil
 	}
@@ -166,4 +193,23 @@ func parseAccessToken(request *restful.Request) (string, error) {
 
 func logErr(err error) {
 	logrus.Error(err)
+}
+
+func respondError(httpStatus, errorCode int, errorMessage string) restful.ServiceError {
+	messageByte, err := json.Marshal(ErrorResponse{
+		ErrorCode:    errorCode,
+		ErrorMessage: errorMessage,
+	})
+	if err != nil {
+		return restful.ServiceError{
+			Code: http.StatusInternalServerError,
+			Message: fmt.Sprintf(`{"ErrorCode":%d,"ErrorMessage":"%s"}`, UnableToMarshalErrorResponse,
+				"unable to parse error message : "+err.Error()),
+		}
+	}
+
+	return restful.ServiceError{
+		Code:    httpStatus,
+		Message: string(messageByte),
+	}
 }

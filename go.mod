@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	github.com/AccelByte/go-jose v2.1.4+incompatible
-	github.com/AccelByte/iam-go-sdk v1.0.3
+	github.com/AccelByte/iam-go-sdk v1.0.4
 	github.com/emicklei/go-restful v2.9.3+incompatible
 	github.com/fatih/structs v1.1.0
 	github.com/json-iterator/go v1.1.6 // indirect
@@ -15,5 +15,6 @@ require (
 	github.com/sirupsen/logrus v1.4.1
 	github.com/stretchr/testify v1.3.0
 	github.com/tinylib/msgp v1.1.0 // indirect
+	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4 // indirect
 	gopkg.in/DataDog/dd-trace-go.v1 v1.12.1
 )
