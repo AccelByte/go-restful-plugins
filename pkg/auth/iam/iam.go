@@ -170,7 +170,7 @@ func WithValidAudienceScope(scope string) FilterOption {
 		err := iamClient.ValidateAudienceScope(claims, scope)
 		if err != nil {
 			return respondError(http.StatusUnauthorized, EIDWithValidAudienceScopeInvalidAudienceOrScope,
-				"invalid audience or scope")
+				fmt.Sprintf("access forbidden : %s", err.Error()))
 		}
 		return nil
 	}
