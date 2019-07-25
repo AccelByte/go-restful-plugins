@@ -165,7 +165,7 @@ func WithVerifiedEmail() FilterOption {
 }
 
 // WithValidAudience filters request from a user with verified audience
-func WithValidAudience(scope string) FilterOption {
+func WithValidAudience() FilterOption {
 	return func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error {
 		err := iamClient.ValidateAudience(claims)
 		if err != nil {
