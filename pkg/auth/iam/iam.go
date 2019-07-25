@@ -164,12 +164,24 @@ func WithVerifiedEmail() FilterOption {
 	}
 }
 
-// WithValidAudienceScope filters request from a user with verified audience and scope only
-func WithValidAudienceScope(scope string) FilterOption {
+// WithValidAudience filters request from a user with verified audience
+func WithValidAudience(scope string) FilterOption {
 	return func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error {
-		err := iamClient.ValidateAudienceScope(claims, scope)
+		err := iamClient.ValidateAudience(claims)
 		if err != nil {
-			return respondError(http.StatusUnauthorized, EIDWithValidAudienceScopeInvalidAudienceOrScope,
+			return respondError(http.StatusUnauthorized, EIDWithValidAudienceInvalidAudience,
+				fmt.Sprintf("access forbidden : %s", err.Error()))
+		}
+		return nil
+	}
+}
+
+// WithValidScope filters request from a user with verified scope
+func WithValidScope(scope string) FilterOption {
+	return func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error {
+		err := iamClient.ValidateScope(claims, scope)
+		if err != nil {
+			return respondError(http.StatusUnauthorized, EIDWithValidScopeInvalidScope,
 				fmt.Sprintf("access forbidden : %s", err.Error()))
 		}
 		return nil

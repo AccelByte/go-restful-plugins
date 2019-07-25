@@ -5,13 +5,14 @@
 package iam
 
 const (
-	EIDWithValidUserNonUserAccessToken              = 1154001
-	EIDWithPermissionUnableValidatePermission       = 1155001
-	EIDWithPermissionInsufficientPermission         = 1154002
-	EIDWithRoleUnableValidateRole                   = 1155002
-	EIDWithRoleInsufficientPermission               = 1154003
-	EIDWithVerifiedEmailUnableValidateEmailStatus   = 1155003
-	EIDWithVerifiedEmailInsufficientPermission      = 1154004
-	EIDWithValidAudienceScopeInvalidAudienceOrScope = 1154005
-	UnableToMarshalErrorResponse                    = 1155004
+	EIDWithValidUserNonUserAccessToken            = 1154001
+	EIDWithPermissionUnableValidatePermission     = 1155001
+	EIDWithPermissionInsufficientPermission       = 1154002
+	EIDWithRoleUnableValidateRole                 = 1155002
+	EIDWithRoleInsufficientPermission             = 1154003
+	EIDWithVerifiedEmailUnableValidateEmailStatus = 1155003
+	EIDWithVerifiedEmailInsufficientPermission    = 1154004
+	EIDWithValidAudienceInvalidAudience           = 1154005
+	EIDWithValidScopeInvalidScope                 = 1154006
+	UnableToMarshalErrorResponse                  = 1155004
 )
