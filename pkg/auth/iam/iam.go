@@ -169,7 +169,7 @@ func WithValidAudience() FilterOption {
 	return func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error {
 		err := iamClient.ValidateAudience(claims)
 		if err != nil {
-			return respondError(http.StatusForbidden, EIDWithValidAudienceInvalidAudience,
+			return respondError(http.StatusForbidden, EIDAccessDenied,
 				"access_denied")
 		}
 		return nil
@@ -181,7 +181,7 @@ func WithValidScope(scope string) FilterOption {
 	return func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error {
 		err := iamClient.ValidateScope(claims, scope)
 		if err != nil {
-			return respondError(http.StatusForbidden, EIDWithValidScopeInvalidScope,
+			return respondError(http.StatusForbidden, EIDInsufficientScope,
 				"insufficient_scope")
 		}
 		return nil
