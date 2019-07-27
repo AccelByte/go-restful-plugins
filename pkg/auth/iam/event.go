@@ -12,7 +12,7 @@ const (
 	EIDWithRoleInsufficientPermission             = 1154003
 	EIDWithVerifiedEmailUnableValidateEmailStatus = 1155003
 	EIDWithVerifiedEmailInsufficientPermission    = 1154004
-	EIDWithValidAudienceInvalidAudience           = 1154005
-	EIDWithValidScopeInvalidScope                 = 1154006
+	EIDAccessDenied                               = 1154005
+	EIDInsufficientScope                          = 1154006
 	UnableToMarshalErrorResponse                  = 1155004
 )
