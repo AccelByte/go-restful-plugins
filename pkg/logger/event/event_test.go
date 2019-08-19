@@ -29,7 +29,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
-	iamAuth "github.com/AccelByte/go-restful-plugins/pkg/auth/iam"
+	iamAuth "github.com/AccelByte/go-restful-plugins/v3/pkg/auth/iam"
 )
 
 // nolint: dupl // most part of the test is identical
