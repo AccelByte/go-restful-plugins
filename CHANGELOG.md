@@ -1,3 +1,7 @@
+Release v3.0.7 (2019-08-22)
+===========================
+- Fixed set claims attribute before perform filter 
+
 Release v3.0.6 (2019-08-19)
 ===========================
 - Updated `iam-go-sdk` to v1.1.1 

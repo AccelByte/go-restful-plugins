@@ -74,6 +74,8 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 			return
 		}
 
+		req.SetAttribute(ClaimsAttribute, claims)
+
 		for _, opt := range opts {
 			if err = opt(req, filter.iamClient, claims); err != nil {
 				if svcErr, ok := err.(restful.ServiceError); ok {
@@ -86,8 +88,6 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 				return
 			}
 		}
-
-		req.SetAttribute(ClaimsAttribute, claims)
 
 		chain.ProcessFilter(req, resp)
 	}
