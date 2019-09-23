@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 AccelByte Inc
+ * Copyright 2018-2019 AccelByte Inc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,8 +28,6 @@ import (
 	"github.com/emicklei/go-restful"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-
-	iamAuth "github.com/AccelByte/go-restful-plugins/v3/pkg/auth/iam"
 )
 
 // nolint: dupl // most part of the test is identical
@@ -251,12 +249,13 @@ func TestWithNoEventID(t *testing.T) {
 	assert.Contains(t, evt.additionalFields, "test")
 }
 
-//nolint: dupl // most part of the test is identical
+//nolint: dupl,funlen // most part of the test is identical
 func TestInfoLogWithJWTClaims(t *testing.T) {
+	const ClaimsAttribute = "JWTClaims"
 	ws := new(restful.WebService)
 	extract := func(req *restful.Request) (userID string, clientID []string, namespace string, traceID string,
 		sessionID string) {
-		claims := iamAuth.RetrieveJWTClaims(req)
+		claims := req.Attribute(ClaimsAttribute).(*iam.JWTClaims)
 		if claims != nil {
 			return claims.Subject, claims.Audience, claims.Namespace,
 				req.HeaderParameter(TraceIDKey), req.HeaderParameter(SessionIDKey)
