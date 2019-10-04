@@ -15,4 +15,6 @@ const (
 	EIDAccessDenied                               = 1154005
 	EIDInsufficientScope                          = 1154006
 	UnableToMarshalErrorResponse                  = 1155004
+
+	ErrorCodeUnauthorizedAccess = 20001
 )

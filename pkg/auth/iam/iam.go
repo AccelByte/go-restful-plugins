@@ -41,8 +41,8 @@ type Filter struct {
 
 // ErrorResponse is the generic structure for communicating errors from a REST endpoint.
 type ErrorResponse struct {
-	ErrorCode    int `json:",omitempty"`
-	ErrorMessage string
+	ErrorCode    int    `json:"errorCode,omitempty"`
+	ErrorMessage string `json:"errorMessage"`
 }
 
 // NewFilter creates new Filter instance
@@ -63,14 +63,16 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 		token, err := parseAccessToken(req)
 		if err != nil {
 			logrus.Warn("unauthorized access: ", err)
-			logErr(resp.WriteErrorString(http.StatusUnauthorized, "unauthorized access"))
+			logErr(respondError(http.StatusUnauthorized, ErrorCodeUnauthorizedAccess,
+				"unauthorized access"))
 			return
 		}
 
 		claims, err := filter.iamClient.ValidateAndParseClaims(token)
 		if err != nil {
 			logrus.Warn("unauthorized access: ", err)
-			logErr(resp.WriteErrorString(http.StatusUnauthorized, "unauthorized access"))
+			logErr(respondError(http.StatusUnauthorized, ErrorCodeUnauthorizedAccess,
+				"unauthorized access"))
 			return
 		}
 

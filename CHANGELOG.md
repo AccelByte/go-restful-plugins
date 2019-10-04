@@ -1,3 +1,8 @@
+Release v3.0.10 (2019-10-04)
+===========================
+- Update auth function to return error response based on standard
+- Update error response field name to camelCase
+
 Release v3.0.9 (2019-10-02)
 ===========================
 - Update `iam-go-sdk` to v1.1.2
