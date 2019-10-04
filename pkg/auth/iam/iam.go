@@ -63,16 +63,18 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 		token, err := parseAccessToken(req)
 		if err != nil {
 			logrus.Warn("unauthorized access: ", err)
-			logErr(respondError(http.StatusUnauthorized, ErrorCodeUnauthorizedAccess,
-				"unauthorized access"))
+			errorRespond := respondError(http.StatusUnauthorized, ErrorCodeUnauthorizedAccess,
+				"unauthorized access")
+			logErr(resp.WriteErrorString(errorRespond.Code, errorRespond.Message))
 			return
 		}
 
 		claims, err := filter.iamClient.ValidateAndParseClaims(token)
 		if err != nil {
 			logrus.Warn("unauthorized access: ", err)
-			logErr(respondError(http.StatusUnauthorized, ErrorCodeUnauthorizedAccess,
-				"unauthorized access"))
+			errorRespond := respondError(http.StatusUnauthorized, ErrorCodeUnauthorizedAccess,
+				"unauthorized access")
+			logErr(resp.WriteErrorString(errorRespond.Code, errorRespond.Message))
 			return
 		}
 
