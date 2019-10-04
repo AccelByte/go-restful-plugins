@@ -41,7 +41,7 @@ type Filter struct {
 
 // ErrorResponse is the generic structure for communicating errors from a REST endpoint.
 type ErrorResponse struct {
-	ErrorCode    int    `json:"errorCode,omitempty"`
+	ErrorCode    int    `json:"errorCode"`
 	ErrorMessage string `json:"errorMessage"`
 }
 
