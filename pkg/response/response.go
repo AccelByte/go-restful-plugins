@@ -17,7 +17,6 @@
 package response
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -30,8 +29,8 @@ import (
 // Use event ID for error code, register your event ID at:
 // https://docs.google.com/spreadsheets/d/1tUB0BSNLyPgeWEtnNzVQkl6Shud-_ErJja2RjIyt1B0/edit?usp=sharing
 type Error struct {
-	ErrorCode    int    `json:"code"`
-	ErrorMessage string `json:"message"`
+	ErrorCode    int    `json:"errorCode"`
+	ErrorMessage string `json:"errorMessage"`
 	ErrorLogMsg  string `json:"-"`
 }
 
@@ -63,16 +62,7 @@ func Write(request *restful.Request, response *restful.Response, httpStatusCode 
 // WriteError sends error message
 func WriteError(request *restful.Request, response *restful.Response, httpStatusCode int, serviceType int,
 	eventErr error, errorResponse *Error) {
-	resp, err := json.Marshal(errorResponse)
-	if err != nil {
-		err = errors.Wrap(err, "unable to marshal error response")
-		event.Error(request, unableToWriteResponse, serviceType, levelError,
-			fmt.Sprintf("%v: %v: %v", err, errorResponse, eventErr))
-		fmt.Printf("%+v\n", err)
-		return
-	}
-
-	err = response.WriteErrorString(httpStatusCode, string(resp))
+	err := response.WriteHeaderAndJson(httpStatusCode, errorResponse, restful.MIME_JSON)
 	if err != nil {
 		err = errors.Wrap(err, "unable to write error response")
 		event.Error(request, unableToWriteResponse, serviceType, levelError,
