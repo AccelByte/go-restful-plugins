@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	github.com/AccelByte/go-jose v2.1.4+incompatible
-	github.com/AccelByte/iam-go-sdk v1.1.1
+	github.com/AccelByte/iam-go-sdk v1.1.2
 	github.com/emicklei/go-restful v2.9.3+incompatible
 	github.com/fatih/structs v1.1.0
 	github.com/json-iterator/go v1.1.6 // indirect
@@ -13,6 +13,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/opentracing/opentracing-go v1.1.0 // indirect
 	github.com/philhofer/fwd v1.0.0 // indirect
+	github.com/pkg/errors v0.8.1
 	github.com/sirupsen/logrus v1.4.1
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/stretchr/testify v1.4.0

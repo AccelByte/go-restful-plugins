@@ -1,3 +1,16 @@
+Release v3.0.9 (2019-10-02)
+===========================
+- Update `iam-go-sdk` to v1.1.2
+
+Release v3.0.8 (2019-09-23)
+===========================
+- Added `response` package
+- Added `util` package
+
+Release v3.0.7 (2019-09-19)
+===========================
+- Updated go module to denote v3 
+
 Release v3.0.6 (2019-08-19)
 ===========================
 - Updated `iam-go-sdk` to v1.1.1 
