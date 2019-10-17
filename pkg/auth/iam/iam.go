@@ -19,7 +19,6 @@ package iam
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -65,7 +64,7 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 			logrus.Warn("unauthorized access: ", err)
 			logErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
 				ErrorCode:    UnauthorizedAccess,
-				ErrorMessage: "unauthorized access",
+				ErrorMessage: ErrorCodeMapping[UnauthorizedAccess],
 			}, restful.MIME_JSON))
 			return
 		}
@@ -75,7 +74,7 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 			logrus.Warn("unauthorized access: ", err)
 			logErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
 				ErrorCode:    UnauthorizedAccess,
-				ErrorMessage: "unauthorized access",
+				ErrorMessage: ErrorCodeMapping[UnauthorizedAccess],
 			}, restful.MIME_JSON))
 			return
 		}
@@ -225,10 +224,13 @@ func respondError(httpStatus, errorCode int, errorMessage string) restful.Servic
 		ErrorMessage: errorMessage,
 	})
 	if err != nil {
+		errMsgByte, _ := json.Marshal(ErrorResponse{
+			ErrorCode:    InternalServerError,
+			ErrorMessage: "unable to parse error message : " + err.Error(),
+		})
 		return restful.ServiceError{
-			Code: http.StatusInternalServerError,
-			Message: fmt.Sprintf(`{"ErrorCode":%d,"ErrorMessage":"%s"}`, UnableToMarshalErrorResponse,
-				"unable to parse error message : "+err.Error()),
+			Code:    http.StatusInternalServerError,
+			Message: string(errMsgByte),
 		}
 	}
 
