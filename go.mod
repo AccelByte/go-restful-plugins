@@ -7,6 +7,7 @@ require (
 	github.com/AccelByte/iam-go-sdk v1.1.2
 	github.com/emicklei/go-restful v2.9.3+incompatible
 	github.com/fatih/structs v1.1.0
+	github.com/google/uuid v1.1.1
 	github.com/json-iterator/go v1.1.6 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
