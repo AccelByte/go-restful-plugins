@@ -37,7 +37,7 @@ extractFunc := func(req *restful.Request) (userID string, clientID []string, nam
 	sessionID string) {
 		claims := iamAuth.RetrieveJWTClaims(req)
 		if claims != nil {
-			return claims.Subject, claims.Audience, claims.Namespace,
+			return claims.Subject, []string{claims.ClientID}, claims.Namespace,
 				req.HeaderParameter("X-Ab-TraceID"), req.HeaderParameter("X-Ab-SessionID")
 		}
 		return "", []string{}, "", req.HeaderParameter("X-Ab-TraceID"), req.HeaderParameter("X-Ab-SessionID")

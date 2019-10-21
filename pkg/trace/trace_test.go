@@ -14,40 +14,36 @@
  * limitations under the License.
  */
 
-package util
+package trace
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
+	"strings"
 	"testing"
+	"time"
 
-	"github.com/AccelByte/go-jose/jwt"
-	"github.com/AccelByte/go-restful-plugins/v3/pkg/logger/event"
-	"github.com/AccelByte/iam-go-sdk"
+	"github.com/google/uuid"
+
 	"github.com/emicklei/go-restful"
 	"github.com/stretchr/testify/assert"
 )
 
-//nolint: dupl,funlen // most part of the test is identical
-func TestExtractDefaultWithJWT(t *testing.T) {
+// nolint: dupl // most part of the test is identical
+func TestFilterWithTraceID(t *testing.T) {
 	ws := new(restful.WebService)
-	var UserID, Namespace, traceID, sessionID string
-	var ClientIDs []string
-	ws.Filter(event.Log("test", "iam", ExtractDefault))
+	ws.Filter(Filter())
+
+	var traceID string
+
 	ws.Route(
 		ws.GET("/namespace/{namespace}/user/{id}").
 			Param(restful.PathParameter("namespace", "namespace")).
 			Param(restful.PathParameter("id", "user ID")).
 			To(func(request *restful.Request, response *restful.Response) {
-				request.SetAttribute("JWTClaims", &iam.JWTClaims{
-					Namespace: "testNamespace",
-					ClientID:  "testClientID",
-					Claims: jwt.Claims{
-						Subject: "testUserID",
-					},
-				})
-
-				UserID, ClientIDs, Namespace, traceID, sessionID = ExtractDefault(request)
+				traceID = request.HeaderParameter(traceIDKey)
 			}))
 
 	container := restful.NewContainer()
@@ -55,31 +51,27 @@ func TestExtractDefaultWithJWT(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
-	req.Header.Set(traceIDKey, "testTraceID")
-	req.Header.Set(sessionIDKey, "testSesssionID")
+	req.Header.Set(traceIDKey, "123456789")
 
 	resp := httptest.NewRecorder()
 	container.ServeHTTP(resp, req)
 
-	assert.Equal(t, "testUserID", UserID)
-	assert.Equal(t, []string{"testClientID"}, ClientIDs)
-	assert.Equal(t, "testNamespace", Namespace)
-	assert.Equal(t, "testTraceID", traceID)
-	assert.Equal(t, "testSesssionID", sessionID)
+	assert.Equal(t, "123456789", traceID)
 }
 
-//nolint: dupl,funlen // most part of the test is identical
-func TestExtractDefaultWithoutJWT(t *testing.T) {
+// nolint: dupl // most part of the test is identical
+func TestFilterWithoutTraceID(t *testing.T) {
 	ws := new(restful.WebService)
-	var UserID, Namespace, traceID, sessionID string
-	var ClientIDs []string
-	ws.Filter(event.Log("test", "iam", ExtractDefault))
+	ws.Filter(Filter())
+
+	var traceID string
+
 	ws.Route(
 		ws.GET("/namespace/{namespace}/user/{id}").
 			Param(restful.PathParameter("namespace", "namespace")).
 			Param(restful.PathParameter("id", "user ID")).
 			To(func(request *restful.Request, response *restful.Response) {
-				UserID, ClientIDs, Namespace, traceID, sessionID = ExtractDefault(request)
+				traceID = request.HeaderParameter(traceIDKey)
 			}))
 
 	container := restful.NewContainer()
@@ -87,15 +79,24 @@ func TestExtractDefaultWithoutJWT(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
-	req.Header.Set(traceIDKey, "testTraceID")
-	req.Header.Set(sessionIDKey, "testSesssionID")
 
 	resp := httptest.NewRecorder()
 	container.ServeHTTP(resp, req)
 
-	assert.Equal(t, "", UserID)
-	assert.Equal(t, []string{}, ClientIDs)
-	assert.Equal(t, "", Namespace)
-	assert.Equal(t, "testTraceID", traceID)
-	assert.Equal(t, "testSesssionID", sessionID)
+	assert.NotNil(t, traceID)
+	traceIDSplited := strings.Split(traceID, "-")
+	traceUnix, err := strconv.ParseInt(traceIDSplited[0], 16, 64)
+	assert.Nil(t, err)
+	traceTime := time.Unix(traceUnix, 0)
+	assert.Nil(t, validateIAMUUID(traceIDSplited[1]))
+	assert.WithinDuration(t, time.Now().UTC(), traceTime, time.Second*2)
+}
+
+func validateIAMUUID(u string) error {
+	notIAMFormat := strings.Contains(u, "-")
+	if notIAMFormat {
+		return errors.New("IAM's UUID doesn't contain dash (-)")
+	}
+	_, err := uuid.Parse(u)
+	return err
 }
