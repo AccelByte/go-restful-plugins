@@ -1,3 +1,13 @@
+Release v3.1.1 (2019-10-21)
+===========================
+- Update ip extraction on `logger/common` package
+
+Release v3.1.0 (2019-10-18)
+===========================
+- Add `trace` package
+- Update `response` package for Error Code Standards
+- Update ExtractDefault in `util` package
+
 Release v3.0.9 (2019-10-02)
 ===========================
 - Update `iam-go-sdk` to v1.1.2
