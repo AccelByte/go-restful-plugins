@@ -1,3 +1,8 @@
+Release v3.1.2 (2019-10-21)
+===========================
+- Update auth function to return error response based on standard
+- Update auth error response field name to camelCase
+
 Release v3.1.1 (2019-10-21)
 ===========================
 - Update ip extraction on `logger/common` package
