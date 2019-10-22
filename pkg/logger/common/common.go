@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 AccelByte Inc
+ * Copyright 2018-2019 AccelByte Inc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,10 @@
 package common
 
 import (
-	"strings"
+	"net/http"
 	"time"
 
+	publicsourceip "github.com/AccelByte/public-source-ip"
 	"github.com/emicklei/go-restful"
 	"github.com/sirupsen/logrus"
 )
@@ -34,7 +35,7 @@ func Log(req *restful.Request, resp *restful.Response, chain *restful.FilterChai
 	}
 	chain.ProcessFilter(req, resp)
 	logrus.Infof(`%s - %s [%s] "%s %s %s" %d %d`,
-		strings.Split(req.Request.RemoteAddr, ":")[0],
+		publicsourceip.PublicIP(&http.Request{Header: req.Request.Header}),
 		username,
 		time.Now().Format("02/Jan/2006:15:04:05 -0700"),
 		req.Request.Method,
