@@ -47,7 +47,7 @@ func Write(request *restful.Request, response *restful.Response, httpStatusCode 
 	message string, entity interface{}) {
 	err := response.WriteHeaderAndJson(httpStatusCode, entity, restful.MIME_JSON)
 	if err != nil {
-		WriteError(request, response, http.StatusInternalServerError, serviceType, errors.WithStack(err),
+		WriteErrorWithEventID(request, response, http.StatusInternalServerError, serviceType, eventID, errors.WithStack(err),
 			&Error{
 				ErrorCode:    unableToWriteResponse,
 				ErrorMessage: "unable to write response",
@@ -62,23 +62,29 @@ func Write(request *restful.Request, response *restful.Response, httpStatusCode 
 // WriteError sends error message
 func WriteError(request *restful.Request, response *restful.Response, httpStatusCode int, serviceType int,
 	eventErr error, errorResponse *Error) {
+	WriteErrorWithEventID(request, response, httpStatusCode, serviceType, errorResponse.ErrorCode, eventErr, errorResponse)
+}
+
+// WriteErrorWithEventID sends error message with Event ID
+func WriteErrorWithEventID(request *restful.Request, response *restful.Response, httpStatusCode int,
+	serviceType int, eventID int, eventErr error, errorResponse *Error) {
 	err := response.WriteHeaderAndJson(httpStatusCode, errorResponse, restful.MIME_JSON)
 	if err != nil {
 		err = errors.Wrap(err, "unable to write error response")
 		event.Error(request, unableToWriteResponse, serviceType, levelError,
-			fmt.Sprintf("%v: %v: %v", err, errorResponse, eventErr))
+			fmt.Sprintf("%v: %+v: %v", err, errorResponse, eventErr))
 		fmt.Printf("%+v\n", err)
 		return
 	}
 
 	if httpStatusCode >= 500 {
-		event.Error(request, errorResponse.ErrorCode, serviceType, levelError,
-			fmt.Sprintf("error: %v: %v", errorResponse, eventErr))
+		event.Error(request, eventID, serviceType, levelError,
+			fmt.Sprintf("error: %+v: %v", errorResponse, eventErr))
 		fmt.Printf("%+v\n", eventErr)
 		return
 	}
 
-	event.Warn(request, errorResponse.ErrorCode, serviceType, levelWarn,
-		fmt.Sprintf("error: %v: %v", errorResponse, eventErr))
+	event.Warn(request, eventID, serviceType, levelWarn,
+		fmt.Sprintf("error: %+v: %v", errorResponse, eventErr))
 	fmt.Printf("%+v\n", eventErr)
 }

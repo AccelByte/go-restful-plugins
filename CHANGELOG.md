@@ -1,3 +1,8 @@
+Release v3.1.3 (2019-12-12)
+===========================
+- Add `WriteErrorWithEventID` in `response` package
+- Update `Write` in `response` package
+
 Release v3.1.2 (2019-10-21)
 ===========================
 - Update auth function to return error response based on standard
