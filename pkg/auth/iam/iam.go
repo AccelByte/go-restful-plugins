@@ -19,7 +19,6 @@ package iam
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -41,8 +40,8 @@ type Filter struct {
 
 // ErrorResponse is the generic structure for communicating errors from a REST endpoint.
 type ErrorResponse struct {
-	ErrorCode    int `json:",omitempty"`
-	ErrorMessage string
+	ErrorCode    int    `json:"errorCode"`
+	ErrorMessage string `json:"errorMessage"`
 }
 
 // NewFilter creates new Filter instance
@@ -63,14 +62,20 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 		token, err := parseAccessToken(req)
 		if err != nil {
 			logrus.Warn("unauthorized access: ", err)
-			logErr(resp.WriteErrorString(http.StatusUnauthorized, "unauthorized access"))
+			logErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
+				ErrorCode:    UnauthorizedAccess,
+				ErrorMessage: ErrorCodeMapping[UnauthorizedAccess],
+			}, restful.MIME_JSON))
 			return
 		}
 
 		claims, err := filter.iamClient.ValidateAndParseClaims(token)
 		if err != nil {
 			logrus.Warn("unauthorized access: ", err)
-			logErr(resp.WriteErrorString(http.StatusUnauthorized, "unauthorized access"))
+			logErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
+				ErrorCode:    UnauthorizedAccess,
+				ErrorMessage: ErrorCodeMapping[UnauthorizedAccess],
+			}, restful.MIME_JSON))
 			return
 		}
 
@@ -78,7 +83,13 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 			if err = opt(req, filter.iamClient, claims); err != nil {
 				if svcErr, ok := err.(restful.ServiceError); ok {
 					logrus.Warn(svcErr.Message)
-					logErr(resp.WriteErrorString(svcErr.Code, svcErr.Message))
+					var respErr ErrorResponse
+					err = json.Unmarshal([]byte(svcErr.Message), &respErr)
+					if err == nil {
+						logErr(resp.WriteHeaderAndJson(svcErr.Code, respErr, restful.MIME_JSON))
+					} else {
+						logErr(resp.WriteErrorString(svcErr.Code, svcErr.Message))
+					}
 					return
 				}
 				logrus.Warn(err)
@@ -105,8 +116,8 @@ func RetrieveJWTClaims(request *restful.Request) *iam.JWTClaims {
 func WithValidUser() FilterOption {
 	return func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error {
 		if claims.Subject == "" {
-			return respondError(http.StatusForbidden, EIDWithValidUserNonUserAccessToken,
-				"access forbidden: non user access token")
+			return respondError(http.StatusForbidden, TokenIsNotUserToken,
+				"access forbidden: "+ErrorCodeMapping[TokenIsNotUserToken])
 		}
 		return nil
 	}
@@ -121,12 +132,12 @@ func WithPermission(permission *iam.Permission) FilterOption {
 
 		valid, err := iamClient.ValidatePermission(claims, *permission, requiredPermissionResources)
 		if err != nil {
-			return respondError(http.StatusInternalServerError, EIDWithPermissionUnableValidatePermission,
+			return respondError(http.StatusInternalServerError, InternalServerError,
 				"unable to validate permission: "+err.Error())
 		}
 		if !valid {
-			return respondError(http.StatusForbidden, EIDWithPermissionInsufficientPermission,
-				"access forbidden: insufficient permission")
+			return respondError(http.StatusForbidden, InsufficientPermissions,
+				"access forbidden: "+ErrorCodeMapping[InsufficientPermissions])
 		}
 		return nil
 	}
@@ -169,8 +180,8 @@ func WithValidAudience() FilterOption {
 	return func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error {
 		err := iamClient.ValidateAudience(claims)
 		if err != nil {
-			return respondError(http.StatusForbidden, EIDAccessDenied,
-				"access_denied")
+			return respondError(http.StatusForbidden, InvalidAudience,
+				"access forbidden: "+ErrorCodeMapping[InvalidAudience])
 		}
 		return nil
 	}
@@ -181,8 +192,8 @@ func WithValidScope(scope string) FilterOption {
 	return func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error {
 		err := iamClient.ValidateScope(claims, scope)
 		if err != nil {
-			return respondError(http.StatusForbidden, EIDInsufficientScope,
-				"insufficient_scope")
+			return respondError(http.StatusForbidden, InsufficientScope,
+				"access forbidden: "+ErrorCodeMapping[InsufficientScope])
 		}
 		return nil
 	}
@@ -213,10 +224,13 @@ func respondError(httpStatus, errorCode int, errorMessage string) restful.Servic
 		ErrorMessage: errorMessage,
 	})
 	if err != nil {
+		errMsgByte, _ := json.Marshal(ErrorResponse{
+			ErrorCode:    InternalServerError,
+			ErrorMessage: "unable to parse error message : " + err.Error(),
+		})
 		return restful.ServiceError{
-			Code: http.StatusInternalServerError,
-			Message: fmt.Sprintf(`{"ErrorCode":%d,"ErrorMessage":"%s"}`, UnableToMarshalErrorResponse,
-				"unable to parse error message : "+err.Error()),
+			Code:    http.StatusInternalServerError,
+			Message: string(errMsgByte),
 		}
 	}
 

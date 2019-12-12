@@ -5,6 +5,7 @@ go 1.12
 require (
 	github.com/AccelByte/go-jose v2.1.4+incompatible
 	github.com/AccelByte/iam-go-sdk v1.1.2
+	github.com/AccelByte/public-source-ip v1.0.0
 	github.com/emicklei/go-restful v2.9.3+incompatible
 	github.com/fatih/structs v1.1.0
 	github.com/google/uuid v1.1.1
