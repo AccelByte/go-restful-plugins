@@ -22,9 +22,11 @@ import (
 	"github.com/emicklei/go-restful"
 )
 
+type contextKeyType string
+
 const (
 	traceIDKey     = "X-Ab-TraceID"
-	spanContextKey = "span"
+	spanContextKey = contextKeyType("span")
 )
 
 func Filter() restful.FilterFunction {

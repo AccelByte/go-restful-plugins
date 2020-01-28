@@ -51,12 +51,6 @@ func TestJaegerFilterWithZipkinMultipleHeaders(t *testing.T) {
 			Param(restful.PathParameter("id", "user ID")).
 			To(func(request *restful.Request, response *restful.Response) {
 				span = GetSpanFromRestfulContext(request.Request.Context())
-				AddTag(span, "tag_id", "tag_value")
-				AddBaggage(span, "exampleBaggage", "example")
-				AddLog(span, "exampleBaggage", "example")
-				span.Finish()
-
-				StartSpanFromContext()
 			}))
 
 	container := restful.NewContainer()
@@ -93,7 +87,8 @@ func TestJaegerFilterWithZipkinMultipleHeaders(t *testing.T) {
 /*
 // TestJaegerFilterWithZipkinSingleHeader test zipkin single-header request
 // https://github.com/openzipkin/b3-propagation#single-header
-// currently not supported by the upstream library https://github.com/openzipkin/b3-propagation/blob/master/STATUS.md#status-of-instrumentation-libraries-and-b3-support
+// currently not supported by the upstream library
+// https://github.com/openzipkin/b3-propagation/blob/master/STATUS.md#status-of-instrumentation-libraries-and-b3-support
 func TestJaegerFilterWithZipkinSingleHeader(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 
