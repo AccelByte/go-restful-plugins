@@ -18,7 +18,6 @@ Filter is restful.FilterFunction for generating jaeger span using zipkin headers
 
 ```go
     span := GetSpanFromRestfulContext(request.Request.Context())
-    defer span.Finish() // important
     
     // to add a tag
     AddTag(span, "exampleTag", "tag_value")

@@ -28,17 +28,17 @@ import (
 )
 
 const (
-	traceIDKey = "X-Ab-TraceID"
+	TraceIDKey = "X-Ab-TraceID"
 )
 
 func Filter() restful.FilterFunction {
 	return func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
-		if req.HeaderParameter(traceIDKey) == "" {
+		if req.HeaderParameter(TraceIDKey) == "" {
 			traceID, err := generateUUID()
 			if err != nil {
 				logrus.Errorf("Unable to generate UUID %s", err.Error())
 			}
-			req.Request.Header.Add(traceIDKey, fmt.Sprintf("%x-%s", time.Now().UTC().Unix(), traceID))
+			req.Request.Header.Add(TraceIDKey, fmt.Sprintf("%x-%s", time.Now().UTC().Unix(), traceID))
 		}
 		chain.ProcessFilter(req, resp)
 	}
