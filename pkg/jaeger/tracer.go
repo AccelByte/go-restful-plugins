@@ -28,7 +28,12 @@ var forwardHeaders = [...]string{
 
 // InitGlobalTracer initialize global tracer
 // Must be called in main function
-func InitGlobalTracer(jaegerAgentHost string, jaegerCollectorEndpoint string, serviceName string, realm string) io.Closer {
+func InitGlobalTracer(
+	jaegerAgentHost string,
+	jaegerCollectorEndpoint string,
+	serviceName string,
+	realm string,
+) io.Closer {
 	zipkinPropagator := zipkin.NewZipkinB3HTTPHeaderPropagator()
 	injector := jaegerclientgo.TracerOptions.Injector(opentracing.HTTPHeaders, zipkinPropagator)
 	extractor := jaegerclientgo.TracerOptions.Extractor(opentracing.HTTPHeaders, zipkinPropagator)
