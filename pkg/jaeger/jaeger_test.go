@@ -26,13 +26,13 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/uber/jaeger-client-go"
+	jaegerclientgo "github.com/uber/jaeger-client-go"
 )
 
 func TestJaegerFilterWithZipkinMultipleHeaders(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 
-	closer := InitGlobalTracer("", "test", "")
+	closer := InitGlobalTracer("", "", "test", "")
 	defer closer.Close()
 
 	ws := new(restful.WebService)
@@ -71,17 +71,17 @@ func TestJaegerFilterWithZipkinMultipleHeaders(t *testing.T) {
 	require.NotNil(t, span)
 
 	expectedTraceID := traceID
-	assert.Equal(t, expectedTraceID, span.Context().(jaeger.SpanContext).TraceID().String())
+	assert.Equal(t, expectedTraceID, span.Context().(jaegerclientgo.SpanContext).TraceID().String())
 
 	// as we create a new span - header span-id should be mapped into parent-span-id
 	expectedParentID := spanID
-	assert.Equal(t, expectedParentID, span.Context().(jaeger.SpanContext).ParentID().String())
+	assert.Equal(t, expectedParentID, span.Context().(jaegerclientgo.SpanContext).ParentID().String())
 
 	// as we create a new span - span-id should be new
-	assert.NotEmpty(t, span.Context().(jaeger.SpanContext).ParentID().String())
+	assert.NotEmpty(t, span.Context().(jaegerclientgo.SpanContext).ParentID().String())
 
 	expectedSampled := true
-	assert.Equal(t, expectedSampled, span.Context().(jaeger.SpanContext).IsSampled())
+	assert.Equal(t, expectedSampled, span.Context().(jaegerclientgo.SpanContext).IsSampled())
 }
 
 /*
@@ -146,7 +146,7 @@ func TestJaegerFilterWithZipkinSingleHeader(t *testing.T) {
 func TestJaegerFilterWithMissedZipkinHeaders(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 
-	closer := InitGlobalTracer("", "test", "")
+	closer := InitGlobalTracer("", "", "test", "")
 	defer closer.Close()
 
 	ws := new(restful.WebService)
@@ -173,8 +173,8 @@ func TestJaegerFilterWithMissedZipkinHeaders(t *testing.T) {
 
 	require.NotNil(t, span)
 
-	assert.NotEmpty(t, span.Context().(jaeger.SpanContext).TraceID().String())
-	assert.NotEmpty(t, span.Context().(jaeger.SpanContext).ParentID().String())
-	assert.NotEmpty(t, span.Context().(jaeger.SpanContext).ParentID().String())
-	assert.NotEmpty(t, span.Context().(jaeger.SpanContext).IsSampled())
+	assert.NotEmpty(t, span.Context().(jaegerclientgo.SpanContext).TraceID().String())
+	assert.NotEmpty(t, span.Context().(jaegerclientgo.SpanContext).ParentID().String())
+	assert.NotEmpty(t, span.Context().(jaegerclientgo.SpanContext).ParentID().String())
+	assert.NotEmpty(t, span.Context().(jaegerclientgo.SpanContext).IsSampled())
 }

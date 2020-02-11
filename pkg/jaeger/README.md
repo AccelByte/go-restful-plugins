@@ -27,9 +27,4 @@ Filter is restful.FilterFunction for generating jaeger span using zipkin headers
 
     // to add a log
     AddLog(span, "exampleLog", "example")
-
-    // to create a child span
-    // TODO
-
-    span
 ```

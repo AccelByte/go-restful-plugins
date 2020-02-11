@@ -13,7 +13,8 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/sirupsen/logrus"
-	"github.com/uber/jaeger-client-go"
+	jaegerclientgo "github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go/transport"
 	"github.com/uber/jaeger-client-go/zipkin"
 )
 
@@ -27,31 +28,46 @@ var forwardHeaders = [...]string{
 
 // InitGlobalTracer initialize global tracer
 // Must be called in main function
-func InitGlobalTracer(jaegerAgentHost string, serviceName string, realm string) io.Closer {
+func InitGlobalTracer(jaegerAgentHost string, jaegerCollectorEndpoint string, serviceName string, realm string) io.Closer {
 	zipkinPropagator := zipkin.NewZipkinB3HTTPHeaderPropagator()
-	injector := jaeger.TracerOptions.Injector(opentracing.HTTPHeaders, zipkinPropagator)
-	extractor := jaeger.TracerOptions.Extractor(opentracing.HTTPHeaders, zipkinPropagator)
+	injector := jaegerclientgo.TracerOptions.Injector(opentracing.HTTPHeaders, zipkinPropagator)
+	extractor := jaegerclientgo.TracerOptions.Extractor(opentracing.HTTPHeaders, zipkinPropagator)
 
 	// Zipkin shares span ID between client and server spans; it must be enabled via the following option.
-	zipkinSharedRPCSpan := jaeger.TracerOptions.ZipkinSharedRPCSpan(true)
-	var reporter jaeger.Reporter
-	if jaegerAgentHost == "" {
-		reporter = jaeger.NewNullReporter() // for running locally
+	zipkinSharedRPCSpan := jaegerclientgo.TracerOptions.ZipkinSharedRPCSpan(true)
+	var reporter jaegerclientgo.Reporter
+	if jaegerAgentHost == "" && jaegerCollectorEndpoint == "" {
+		reporter = jaegerclientgo.NewNullReporter() // for running locally
+		logrus.Info("Jaeger client configured to be silent")
 	} else {
-		sender, _ := jaeger.NewUDPTransport(jaegerAgentHost, 0)
-		reporter = jaeger.NewRemoteReporter(
+		var sender jaegerclientgo.Transport
+		if jaegerCollectorEndpoint != "" {
+			sender = transport.NewHTTPTransport(jaegerCollectorEndpoint)
+			logrus.Infof("Jaeger client configured to use the collector: %s", jaegerCollectorEndpoint)
+		} else {
+			var err error
+			sender, err = jaegerclientgo.NewUDPTransport(jaegerAgentHost, 0)
+			if err != nil {
+				logrus.Errorf("Jaeger transport initialization error: %s", err.Error())
+			}
+			logrus.Infof("Jaeger client configured to use the agent: %s", jaegerAgentHost)
+		}
+
+		reporter = jaegerclientgo.NewRemoteReporter(
 			sender,
-			jaeger.ReporterOptions.BufferFlushInterval(1*time.Second))
+			jaegerclientgo.ReporterOptions.BufferFlushInterval(1*time.Second),
+			jaegerclientgo.ReporterOptions.Logger(jaegerclientgo.StdLogger),
+		)
 	}
 
-	newTracer, closer := jaeger.NewTracer(
+	newTracer, closer := jaegerclientgo.NewTracer(
 		serviceName+"."+realm,
-		jaeger.NewConstSampler(true),
+		jaegerclientgo.NewConstSampler(true),
 		reporter,
 		injector,
 		extractor,
 		zipkinSharedRPCSpan,
-		jaeger.TracerOptions.PoolSpans(false),
+		jaegerclientgo.TracerOptions.PoolSpans(false),
 	)
 	// Set the singleton opentracing.Tracer with the Jaeger tracer.
 	opentracing.SetGlobalTracer(newTracer)
@@ -166,7 +182,7 @@ func StartSpanIfParentSpanExist(req *restful.Request, operationName string) (ope
 // StartDBSpan start DBSpan from context.
 // Span returned here must be finished with span.finish()
 // Any span not finished will not be sent to jaeger agent
-func StartChildSpan(ctx context.Context, operationName string) (opentracing.Span, context.Context) {
+func StartDBSpan(ctx context.Context, operationName string) (opentracing.Span, context.Context) {
 	return StartSpanFromContext(ctx, "DB-"+operationName)
 }
 
@@ -218,6 +234,14 @@ func AddBaggage(span opentracing.Span, key string, value string) {
 	}
 }
 
+// GetSpanFromRestfulContext get crated by jaeger Filter span from the context
 func GetSpanFromRestfulContext(ctx context.Context) opentracing.Span {
-	return ctx.Value(spanContextKey).(opentracing.Span)
+	if span, ok := ctx.Value(spanContextKey).(opentracing.Span); ok {
+		return span
+	}
+
+	logrus.Info("missed initialization of restful plugin jaeger.Filter")
+	span, _ := StartSpanFromContext(ctx, "unnamed")
+
+	return span
 }
