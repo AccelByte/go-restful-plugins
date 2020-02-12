@@ -84,65 +84,6 @@ func TestJaegerFilterWithZipkinMultipleHeaders(t *testing.T) {
 	assert.Equal(t, expectedSampled, span.Context().(jaegerclientgo.SpanContext).IsSampled())
 }
 
-/*
-// TestJaegerFilterWithZipkinSingleHeader test zipkin single-header request
-// https://github.com/openzipkin/b3-propagation#single-header
-// currently not supported by the upstream library
-// https://github.com/openzipkin/b3-propagation/blob/master/STATUS.md#status-of-instrumentation-libraries-and-b3-support
-func TestJaegerFilterWithZipkinSingleHeader(t *testing.T) {
-	logrus.SetLevel(logrus.DebugLevel)
-
-	closer := InitGlobalTracer("", "test", "")
-	defer closer.Close()
-
-	ws := new(restful.WebService)
-	ws.Filter(Filter())
-
-	var span opentracing.Span
-
-	traceID := "80f198ee56343ba864fe8b2a57d3eff7"
-	parentSpanID := "05e3ac9a4f6e3b90"
-	spanID := "e457b5a2e4d86bd1"
-	sampled := "1"
-
-	ws.Route(
-		ws.GET("/namespace/{namespace}/user/{id}").
-			Param(restful.PathParameter("namespace", "namespace")).
-			Param(restful.PathParameter("id", "user ID")).
-			To(func(request *restful.Request, response *restful.Response) {
-				span = GetSpanFromRestfulContext(request.Request.Context())
-			}))
-
-	container := restful.NewContainer()
-	container.Add(ws)
-
-	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
-	req.Header.Set("X-Forwarded-For", "8.8.8.8")
-
-	// more info about headers https://github.com/openzipkin/b3-propagation/blob/master/README.md#multiple-headers
-	traceHeader := fmt.Sprintf("%s-%s-%s-%s", traceID, spanID, sampled, parentSpanID)
-	req.Header.Set("b3", traceHeader)
-
-	resp := httptest.NewRecorder()
-	container.ServeHTTP(resp, req)
-
-	require.NotNil(t, span)
-
-	expectedTraceID := traceID
-	assert.Equal(t, expectedTraceID, span.Context().(jaeger.SpanContext).TraceID().String())
-
-	// as we create a new span - header span-id should be mapped into parent-span-id
-	expectedParentID := spanID
-	assert.Equal(t, expectedParentID, span.Context().(jaeger.SpanContext).ParentID().String())
-
-	// as we create a new span - span-id should be new
-	assert.NotEmpty(t, span.Context().(jaeger.SpanContext).ParentID().String())
-
-	expectedSampled := true
-	assert.Equal(t, expectedSampled, span.Context().(jaeger.SpanContext).IsSampled())
-}
-*/
-
 func TestJaegerFilterWithMissedZipkinHeaders(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 
