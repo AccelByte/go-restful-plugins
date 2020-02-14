@@ -213,13 +213,18 @@ func StartChildSpan(span opentracing.Span, name string) opentracing.Span {
 	return nil
 }
 
-func InjectSpanIntoRequest(span opentracing.Span, req *http.Request) {
+func InjectSpanIntoRequest(span opentracing.Span, req *http.Request) error {
 	if span != nil {
-		opentracing.GlobalTracer().Inject(
+		err := opentracing.GlobalTracer().Inject(
 			span.Context(),
 			opentracing.HTTPHeaders,
 			opentracing.HTTPHeadersCarrier(req.Header))
+		if err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
 // ExtractRequestHeader to extract SpanContext from request header
