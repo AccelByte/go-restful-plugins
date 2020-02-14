@@ -199,7 +199,27 @@ func StartSpanFromContext(ctx context.Context, operationName string) (opentracin
 		childSpan, childCtx := opentracing.StartSpanFromContext(ctx, operationName)
 		return childSpan, childCtx
 	}
-	return nil, nil
+	return nil, ctx
+}
+
+func StartChildSpan(span opentracing.Span, name string) opentracing.Span {
+	if span != nil {
+		return opentracing.StartSpan(
+			name,
+			opentracing.ChildOf(span.Context()),
+		)
+	}
+
+	return nil
+}
+
+func InjectSpanIntoRequest(span opentracing.Span, req *http.Request) {
+	if span != nil {
+		opentracing.GlobalTracer().Inject(
+			span.Context(),
+			opentracing.HTTPHeaders,
+			opentracing.HTTPHeadersCarrier(req.Header))
+	}
 }
 
 // ExtractRequestHeader to extract SpanContext from request header
@@ -237,6 +257,17 @@ func AddBaggage(span opentracing.Span, key string, value string) {
 	if span != nil {
 		span.SetBaggageItem(key, value)
 	}
+}
+
+// TraceError sends a log and a tag with Error into tracer
+func TraceError(span opentracing.Span, err error) {
+	AddLog(span, "Error", err.Error())
+	AddTag(span, "Error", "true")
+}
+
+// TraceSQLQuery sends a log with SQL query into tracer
+func TraceSQLQuery(span opentracing.Span, query string) {
+	AddLog(span, "SQL", query)
 }
 
 // GetSpanFromRestfulContext get crated by jaeger Filter span from the context

@@ -26,7 +26,7 @@ func TestGetSpanFromRestfulContextWithoutSpan(t *testing.T) {
 	assert.NotEmpty(t, span.Context().(jaegerclientgo.SpanContext).TraceID().String())
 }
 
-func TestGetSpanFromRestfulContextWithoSpan(t *testing.T) {
+func TestGetSpanFromRestfulContextWithSpan(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 
 	closer := InitGlobalTracer("", "", "test", "")
