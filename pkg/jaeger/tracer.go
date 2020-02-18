@@ -302,3 +302,13 @@ func GetSpanFromRestfulContext(ctx context.Context) opentracing.Span {
 
 	return span
 }
+
+func GetSpanContextString(span opentracing.Span) string {
+	if span != nil {
+		if spanContext, ok := span.Context().(jaegerclientgo.SpanContext); ok {
+			return spanContext.String()
+		}
+	}
+
+	return ""
+}

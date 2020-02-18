@@ -89,3 +89,35 @@ func TestChildSpanFromRemoteSpan_EmptySpanContextString(t *testing.T) {
 		scope.Context().(jaegerclientgo.SpanContext).ParentID().String(),
 	)
 }
+
+func TestGetSpanContextString_NotEmptySpanContext(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
+
+	closer := InitGlobalTracer("", "", "test", "")
+	defer closer.Close()
+
+	span := GetSpanFromRestfulContext(context.Background())
+	require.NotNil(t, span)
+
+	require.NotNil(t, span.Context())
+	require.IsType(t, jaegerclientgo.SpanContext{}, span.Context())
+	require.NotNil(t, span.Context().(jaegerclientgo.SpanContext))
+	require.NotEmpty(t, span.Context().(jaegerclientgo.SpanContext).TraceID())
+	assert.NotEmpty(t, span.Context().(jaegerclientgo.SpanContext).TraceID().String())
+
+	spanContextString := GetSpanContextString(span)
+	assert.NotEmpty(t, spanContextString)
+}
+
+func TestGetSpanContextString_EmptySpanContext(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
+
+	closer := InitGlobalTracer("", "", "test", "")
+	defer closer.Close()
+
+	span := opentracing.Span(nil)
+	require.Nil(t, span)
+
+	spanContextString := GetSpanContextString(span)
+	assert.Empty(t, spanContextString)
+}
