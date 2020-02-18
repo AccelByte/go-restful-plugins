@@ -184,6 +184,22 @@ func StartSpanIfParentSpanExist(req *restful.Request, operationName string) (ope
 	return span, opentracing.ContextWithSpan(req.Request.Context(), span)
 }
 
+func ChildSpanFromRemoteSpan(
+	rootCtx context.Context,
+	name string,
+	spanContextStr string,
+) (opentracing.Span, context.Context) {
+	spanContext, err := jaegerclientgo.ContextFromString(spanContextStr)
+	if err == nil {
+		return opentracing.StartSpan(
+			name,
+			opentracing.ChildOf(spanContext),
+		), rootCtx
+	}
+
+	return StartSpanFromContext(rootCtx, name)
+}
+
 // StartDBSpan start DBSpan from context.
 // Span returned here must be finished with span.finish()
 // Any span not finished will not be sent to jaeger agent

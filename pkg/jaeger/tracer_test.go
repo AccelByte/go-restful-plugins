@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -46,5 +47,45 @@ func TestGetSpanFromRestfulContextWithSpan(t *testing.T) {
 	assert.Equal(t,
 		expectedSpan.Context().(jaegerclientgo.SpanContext).TraceID().String(),
 		span.Context().(jaegerclientgo.SpanContext).TraceID().String(),
+	)
+}
+
+func TestChildSpanFromRemoteSpan(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
+
+	closer := InitGlobalTracer("", "", "test", "")
+	defer closer.Close()
+
+	expectedSpan, _ := opentracing.StartSpanFromContext(context.Background(), "test")
+
+	spanContextStr := expectedSpan.Context().(jaegerclientgo.SpanContext).String()
+
+	span, _ := ChildSpanFromRemoteSpan(context.Background(), "test", spanContextStr)
+
+	assert.Equal(t,
+		expectedSpan.Context().(jaegerclientgo.SpanContext).TraceID().String(),
+		span.Context().(jaegerclientgo.SpanContext).TraceID().String(),
+	)
+
+	assert.Equal(t,
+		expectedSpan.Context().(jaegerclientgo.SpanContext).SpanID().String(),
+		span.Context().(jaegerclientgo.SpanContext).ParentID().String(),
+	)
+}
+
+func TestChildSpanFromRemoteSpan_EmptySpanContextString(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
+
+	closer := InitGlobalTracer("", "", "test", "")
+	defer closer.Close()
+
+	scope, _ := ChildSpanFromRemoteSpan(context.Background(), "test", "")
+
+	assert.NotEmpty(t,
+		scope.Context().(jaegerclientgo.SpanContext).TraceID().String(),
+	)
+
+	assert.NotEmpty(t,
+		scope.Context().(jaegerclientgo.SpanContext).ParentID().String(),
 	)
 }
