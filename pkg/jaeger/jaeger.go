@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 AccelByte Inc
+ * Copyright 2019-2020 AccelByte Inc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,37 +14,36 @@
  * limitations under the License.
  */
 
-package trace
+package jaeger
 
 import (
+	"context"
 	"fmt"
-	"strings"
-	"time"
 
-	"github.com/sirupsen/logrus"
-
+	"github.com/AccelByte/go-restful-plugins/v3/pkg/trace"
 	"github.com/emicklei/go-restful"
-	"github.com/google/uuid"
 )
 
+type contextKeyType string
+
 const (
-	TraceIDKey = "X-Ab-TraceID"
+	spanContextKey = contextKeyType("span")
 )
 
 func Filter() restful.FilterFunction {
 	return func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
-		if req.HeaderParameter(TraceIDKey) == "" {
-			traceID, err := generateUUID()
-			if err != nil {
-				logrus.Errorf("Unable to generate UUID %s", err.Error())
-			}
-			req.Request.Header.Add(TraceIDKey, fmt.Sprintf("%x-%s", time.Now().UTC().Unix(), traceID))
-		}
-		chain.ProcessFilter(req, resp)
-	}
-}
+		traceID := req.HeaderParameter(trace.TraceIDKey)
 
-func generateUUID() (string, error) {
-	newUUID, err := uuid.NewRandom()
-	return strings.Replace(newUUID.String(), "-", "", -1), err
+		span, ctx := StartSpan(req, "Request "+req.Request.Method+" "+req.Request.URL.Path)
+		span.SetTag(trace.TraceIDKey, traceID)
+		defer Finish(span)
+
+		ctx = context.WithValue(ctx, spanContextKey, span)
+
+		req.Request = req.Request.WithContext(ctx)
+
+		chain.ProcessFilter(req, resp)
+
+		AddLog(span, "Response status code", fmt.Sprintf("%v", resp.StatusCode()))
+	}
 }

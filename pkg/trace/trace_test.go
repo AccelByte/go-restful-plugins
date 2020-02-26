@@ -43,7 +43,7 @@ func TestFilterWithTraceID(t *testing.T) {
 			Param(restful.PathParameter("namespace", "namespace")).
 			Param(restful.PathParameter("id", "user ID")).
 			To(func(request *restful.Request, response *restful.Response) {
-				traceID = request.HeaderParameter(traceIDKey)
+				traceID = request.HeaderParameter(TraceIDKey)
 			}))
 
 	container := restful.NewContainer()
@@ -51,7 +51,7 @@ func TestFilterWithTraceID(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
-	req.Header.Set(traceIDKey, "123456789")
+	req.Header.Set(TraceIDKey, "123456789")
 
 	resp := httptest.NewRecorder()
 	container.ServeHTTP(resp, req)
@@ -71,7 +71,7 @@ func TestFilterWithoutTraceID(t *testing.T) {
 			Param(restful.PathParameter("namespace", "namespace")).
 			Param(restful.PathParameter("id", "user ID")).
 			To(func(request *restful.Request, response *restful.Response) {
-				traceID = request.HeaderParameter(traceIDKey)
+				traceID = request.HeaderParameter(TraceIDKey)
 			}))
 
 	container := restful.NewContainer()
