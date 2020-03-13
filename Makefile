@@ -9,4 +9,4 @@ coverage:
 	go tool cover -html=coverage.out
 
 lint:
-	golangci-lint run --enable-all --disable=gochecknoinits,gochecknoglobals,scopelint,gomnd,funlen
+	golangci-lint run --enable-all --disable=gochecknoinits,gochecknoglobals,scopelint,gomnd

@@ -9,5 +9,5 @@ before_install:
 script:
   - go mod vendor
   - go mod download
-  - golangci-lint run --enable-all --disable=gochecknoinits,gochecknoglobals,scopelint
+  - make lint
   - make test
