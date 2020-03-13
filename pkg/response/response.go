@@ -53,6 +53,7 @@ func Write(request *restful.Request, response *restful.Response, httpStatusCode 
 				ErrorMessage: "unable to write response",
 				ErrorLogMsg:  fmt.Sprintf("unable to write response: %+v, body: %+v, error: %v", response, entity, err),
 			})
+
 		return
 	}
 
@@ -74,6 +75,7 @@ func WriteErrorWithEventID(request *restful.Request, response *restful.Response,
 		event.Error(request, unableToWriteResponse, serviceType, levelError,
 			fmt.Sprintf("%v: %+v: %v", err, errorResponse, eventErr))
 		fmt.Printf("%+v\n", err)
+
 		return
 	}
 
@@ -81,6 +83,7 @@ func WriteErrorWithEventID(request *restful.Request, response *restful.Response,
 		event.Error(request, eventID, serviceType, levelError,
 			fmt.Sprintf("error: %+v: %v", errorResponse, eventErr))
 		fmt.Printf("%+v\n", eventErr)
+
 		return
 	}
 

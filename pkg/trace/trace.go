@@ -38,8 +38,10 @@ func Filter() restful.FilterFunction {
 			if err != nil {
 				logrus.Errorf("Unable to generate UUID %s", err.Error())
 			}
+
 			req.Request.Header.Add(TraceIDKey, fmt.Sprintf("%x-%s", time.Now().UTC().Unix(), traceID))
 		}
+
 		chain.ProcessFilter(req, resp)
 	}
 }

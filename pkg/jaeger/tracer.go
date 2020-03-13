@@ -40,9 +40,12 @@ func InitGlobalTracer(
 
 	// Zipkin shares span ID between client and server spans; it must be enabled via the following option.
 	zipkinSharedRPCSpan := jaegerclientgo.TracerOptions.ZipkinSharedRPCSpan(true)
+
 	var reporter jaegerclientgo.Reporter
+
 	if jaegerAgentHost == "" && jaegerCollectorEndpoint == "" {
 		reporter = jaegerclientgo.NewNullReporter() // for running locally
+
 		logrus.Info("Jaeger client configured to be silent")
 	} else {
 		var sender jaegerclientgo.Transport
@@ -76,6 +79,7 @@ func InitGlobalTracer(
 	)
 	// Set the singleton opentracing.Tracer with the Jaeger tracer.
 	opentracing.SetGlobalTracer(newTracer)
+
 	return closer
 }
 
@@ -92,6 +96,7 @@ func InjectTrace(ctx context.Context, incomingReq *restful.Request,
 			span.Context(),
 			opentracing.HTTPHeaders,
 			opentracing.HTTPHeadersCarrier(outgoingReq.Header))
+
 		for _, header := range forwardHeaders {
 			if value := incomingReq.Request.Header.Get(header); value != "" {
 				outgoingReq.Header.Set(header, value)
@@ -103,18 +108,21 @@ func InjectTrace(ctx context.Context, incomingReq *restful.Request,
 
 	if logrus.GetLevel() >= logrus.DebugLevel {
 		var header = make(map[string]string)
+
 		for key, val := range outgoingReq.Header {
 			key = strings.ToLower(key)
 			if !strings.Contains(key, "auth") {
 				header[key] = val[0]
 			}
 		}
+
 		logrus.Debug("outgoing header : ", header)
 	}
 
 	if abTraceID := incomingReq.Request.Header.Get(event.TraceIDKey); abTraceID != "" {
 		outgoingReq.Header.Set(event.TraceIDKey, abTraceID)
 	}
+
 	return outgoingReq, span, newCtx
 }
 
@@ -124,18 +132,24 @@ func InjectTrace(ctx context.Context, incomingReq *restful.Request,
 func StartSpan(req *restful.Request, operationName string) (opentracing.Span, context.Context) {
 	if logrus.GetLevel() >= logrus.DebugLevel {
 		var header = make(map[string]string)
+
 		for key, val := range req.Request.Header {
 			key = strings.ToLower(key)
 			if !strings.Contains(key, "auth") {
 				header[key] = val[0]
 			}
 		}
+
 		logrus.Debug("incoming header : ", header)
 	}
+
 	spanContext, err := ExtractRequestHeader(req)
+
 	var span opentracing.Span
+
 	if err != nil {
 		logrus.Debug("request has no tracing context: ", err.Error())
+
 		span = opentracing.StartSpan(operationName)
 	} else {
 		span = opentracing.StartSpan(
@@ -143,12 +157,14 @@ func StartSpan(req *restful.Request, operationName string) (opentracing.Span, co
 			opentracing.ChildOf(spanContext),
 		)
 	}
+
 	ext.HTTPMethod.Set(span, req.Request.Method)
 	ext.HTTPUrl.Set(span, req.Request.Host+req.Request.RequestURI)
 
 	if abTraceID := req.Request.Header.Get(event.TraceIDKey); abTraceID != "" {
 		AddTag(span, event.TraceIDKey, abTraceID)
 	}
+
 	return span, opentracing.ContextWithSpan(req.Request.Context(), span)
 }
 
@@ -159,18 +175,22 @@ func StartSpan(req *restful.Request, operationName string) (opentracing.Span, co
 func StartSpanIfParentSpanExist(req *restful.Request, operationName string) (opentracing.Span, context.Context) {
 	if logrus.GetLevel() >= logrus.DebugLevel {
 		var header = make(map[string]string)
+
 		for key, val := range req.Request.Header {
 			key = strings.ToLower(key)
 			if !strings.Contains(key, "auth") {
 				header[key] = val[0]
 			}
 		}
+
 		logrus.Debug("incoming header : ", header)
 	}
+
 	spanContext, err := ExtractRequestHeader(req)
 	if err != nil {
 		return nil, nil
 	}
+
 	span := opentracing.StartSpan(
 		operationName,
 		opentracing.ChildOf(spanContext),
@@ -181,6 +201,7 @@ func StartSpanIfParentSpanExist(req *restful.Request, operationName string) (ope
 	if abTraceID := req.Request.Header.Get(event.TraceIDKey); abTraceID != "" {
 		AddTag(span, event.TraceIDKey, abTraceID)
 	}
+
 	return span, opentracing.ContextWithSpan(req.Request.Context(), span)
 }
 
@@ -215,6 +236,7 @@ func StartSpanFromContext(ctx context.Context, operationName string) (opentracin
 		childSpan, childCtx := opentracing.StartSpanFromContext(ctx, operationName)
 		return childSpan, childCtx
 	}
+
 	return nil, ctx
 }
 
@@ -282,8 +304,10 @@ func AddBaggage(span opentracing.Span, key string, value string) {
 
 // TraceError sends a log and a tag with Error into tracer
 func TraceError(span opentracing.Span, err error) {
-	AddLog(span, "Error", err.Error())
-	AddTag(span, "Error", "true")
+	if err != nil {
+		AddLog(span, "error", err.Error())
+		AddTag(span, "error", "true")
+	}
 }
 
 // TraceSQLQuery sends a log with SQL query into tracer
@@ -298,6 +322,7 @@ func GetSpanFromRestfulContext(ctx context.Context) opentracing.Span {
 	}
 
 	logrus.Info("missed initialization of restful plugin jaeger.Filter")
+
 	span, _ := StartSpanFromContext(ctx, "unnamed")
 
 	return span

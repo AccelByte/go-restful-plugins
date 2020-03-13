@@ -31,9 +31,11 @@ func ExtractDefault(req *restful.Request) (userID string, clientID []string,
 	namespace string, traceID string, sessionID string) {
 	traceID = req.HeaderParameter(traceIDKey)
 	sessionID = req.HeaderParameter(sessionIDKey)
+
 	claims := iam.RetrieveJWTClaims(req)
 	if claims != nil {
 		return claims.Subject, []string{claims.ClientID}, claims.Namespace, traceID, sessionID
 	}
+
 	return "", []string{}, "", traceID, sessionID
 }

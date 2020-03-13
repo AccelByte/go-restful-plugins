@@ -31,8 +31,11 @@ import (
 //nolint: dupl,funlen // most part of the test is identical
 func TestExtractDefaultWithJWT(t *testing.T) {
 	ws := new(restful.WebService)
+
 	var UserID, Namespace, traceID, sessionID string
+
 	var ClientIDs []string
+
 	ws.Filter(event.Log("test", "iam", ExtractDefault))
 	ws.Route(
 		ws.GET("/namespace/{namespace}/user/{id}").
@@ -71,8 +74,11 @@ func TestExtractDefaultWithJWT(t *testing.T) {
 //nolint: dupl,funlen // most part of the test is identical
 func TestExtractDefaultWithoutJWT(t *testing.T) {
 	ws := new(restful.WebService)
+
 	var UserID, Namespace, traceID, sessionID string
+
 	var ClientIDs []string
+
 	ws.Filter(event.Log("test", "iam", ExtractDefault))
 	ws.Route(
 		ws.GET("/namespace/{namespace}/user/{id}").

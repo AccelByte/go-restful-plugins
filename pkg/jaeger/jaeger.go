@@ -35,6 +35,7 @@ func Filter() restful.FilterFunction {
 		traceID := req.HeaderParameter(trace.TraceIDKey)
 
 		span, ctx := StartSpan(req, "Request "+req.Request.Method+" "+req.Request.URL.Path)
+
 		span.SetTag(trace.TraceIDKey, traceID)
 		defer Finish(span)
 

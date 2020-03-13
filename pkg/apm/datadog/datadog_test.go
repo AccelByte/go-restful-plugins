@@ -30,6 +30,7 @@ import (
 
 func TestChildSpan(t *testing.T) {
 	assert := assert.New(t)
+
 	mt := mocktracer.Start()
 	defer mt.Stop()
 
@@ -51,6 +52,7 @@ func TestChildSpan(t *testing.T) {
 
 func TestTrace200(t *testing.T) {
 	assert := assert.New(t)
+
 	mt := mocktracer.Start()
 	defer mt.Stop()
 
@@ -75,10 +77,13 @@ func TestTrace200(t *testing.T) {
 	assert.Equal(response.StatusCode, 200)
 
 	spans := mt.FinishedSpans()
+
 	assert.Len(spans, 1)
+
 	if len(spans) < 1 {
 		t.Fatalf("no spans")
 	}
+
 	span := spans[0]
 	assert.Equal("http.request", span.OperationName())
 	assert.Equal(ext.SpanTypeWeb, span.Tag(ext.SpanType))
@@ -90,6 +95,7 @@ func TestTrace200(t *testing.T) {
 
 func TestError(t *testing.T) {
 	assert := assert.New(t)
+
 	mt := mocktracer.Start()
 	defer mt.Stop()
 
@@ -113,9 +119,11 @@ func TestError(t *testing.T) {
 
 	spans := mt.FinishedSpans()
 	assert.Len(spans, 1)
+
 	if len(spans) < 1 {
 		t.Fatalf("no spans")
 	}
+
 	span := spans[0]
 	assert.Equal("http.request", span.OperationName())
 	assert.Equal("500", span.Tag(ext.HTTPCode))
@@ -146,6 +154,7 @@ func TestGetSpanNotInstrumented(t *testing.T) {
 
 func TestPropagation(t *testing.T) {
 	assert := assert.New(t)
+
 	mt := mocktracer.Start()
 	defer mt.Stop()
 
@@ -171,6 +180,7 @@ func TestPropagation(t *testing.T) {
 
 func TestInject(t *testing.T) {
 	assert := assert.New(t)
+
 	mt := mocktracer.Start()
 	defer mt.Stop()
 
