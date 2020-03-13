@@ -28,11 +28,13 @@ import (
 // Log is a filter that will log incoming request with Common Log Format
 func Log(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
 	username := "-"
+
 	if req.Request.URL.User != nil {
 		if name := req.Request.URL.User.Username(); name != "" {
 			username = name
 		}
 	}
+
 	chain.ProcessFilter(req, resp)
 	logrus.Infof(`%s - %s [%s] "%s %s %s" %d %d`,
 		publicsourceip.PublicIP(&http.Request{Header: req.Request.Header}),

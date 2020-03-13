@@ -56,6 +56,7 @@ func TestWriteSuccess(t *testing.T) {
 	container.ServeHTTP(resp, req)
 
 	decoder := json.NewDecoder(resp.Body)
+
 	var responseTest ResponseTest
 	_ = decoder.Decode(&responseTest)
 
@@ -91,6 +92,7 @@ func TestWriteErrorWarning(t *testing.T) {
 	container.ServeHTTP(resp, req)
 
 	decoder := json.NewDecoder(resp.Body)
+
 	var responseTest Error
 	_ = decoder.Decode(&responseTest)
 
@@ -131,6 +133,7 @@ func TestWriteErrorInternalServerError(t *testing.T) {
 	container.ServeHTTP(resp, req)
 
 	decoder := json.NewDecoder(resp.Body)
+
 	var responseTest Error
 	_ = decoder.Decode(&responseTest)
 
@@ -172,6 +175,7 @@ func TestWriteErrorWithEventIDWarning(t *testing.T) {
 	container.ServeHTTP(resp, req)
 
 	decoder := json.NewDecoder(resp.Body)
+
 	var responseTest Error
 	_ = decoder.Decode(&responseTest)
 
@@ -213,6 +217,7 @@ func TestWriteErrorWithEventIDInternalServerError(t *testing.T) {
 	container.ServeHTTP(resp, req)
 
 	decoder := json.NewDecoder(resp.Body)
+
 	var responseTest Error
 	_ = decoder.Decode(&responseTest)
 

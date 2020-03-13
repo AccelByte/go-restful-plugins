@@ -87,7 +87,9 @@ func TestFilterWithoutTraceID(t *testing.T) {
 	traceIDSplited := strings.Split(traceID, "-")
 	traceUnix, err := strconv.ParseInt(traceIDSplited[0], 16, 64)
 	assert.Nil(t, err)
+
 	traceTime := time.Unix(traceUnix, 0)
+
 	assert.Nil(t, validateIAMUUID(traceIDSplited[1]))
 	assert.WithinDuration(t, time.Now().UTC(), traceTime, time.Second*2)
 }
@@ -97,6 +99,8 @@ func validateIAMUUID(u string) error {
 	if notIAMFormat {
 		return errors.New("IAM's UUID doesn't contain dash (-)")
 	}
+
 	_, err := uuid.Parse(u)
+
 	return err
 }

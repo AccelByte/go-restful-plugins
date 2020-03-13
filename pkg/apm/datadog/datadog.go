@@ -47,6 +47,7 @@ func Trace(req *restful.Request, resp *restful.Response, chain *restful.FilterCh
 	if spanctx, err := tracer.Extract(tracer.HTTPHeadersCarrier(req.Request.Header)); err == nil {
 		opts = append(opts, tracer.ChildOf(spanctx))
 	}
+
 	span, ctx := tracer.StartSpanFromContext(req.Request.Context(), "http.request", opts...)
 	defer span.Finish()
 
@@ -68,5 +69,6 @@ func Inject(outRequest *http.Request, restfulRequest *restful.Request) error {
 	if !ok {
 		return errors.New("no trace context in the request, request is not instrumented")
 	}
+
 	return tracer.Inject(span.Context(), tracer.HTTPHeadersCarrier(outRequest.Header))
 }

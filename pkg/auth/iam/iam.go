@@ -66,6 +66,7 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 				ErrorCode:    UnauthorizedAccess,
 				ErrorMessage: ErrorCodeMapping[UnauthorizedAccess],
 			}, restful.MIME_JSON))
+
 			return
 		}
 
@@ -76,6 +77,7 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 				ErrorCode:    UnauthorizedAccess,
 				ErrorMessage: ErrorCodeMapping[UnauthorizedAccess],
 			}, restful.MIME_JSON))
+
 			return
 		}
 
@@ -83,17 +85,22 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 			if err = opt(req, filter.iamClient, claims); err != nil {
 				if svcErr, ok := err.(restful.ServiceError); ok {
 					logrus.Warn(svcErr.Message)
+
 					var respErr ErrorResponse
+
 					err = json.Unmarshal([]byte(svcErr.Message), &respErr)
 					if err == nil {
 						logErr(resp.WriteHeaderAndJson(svcErr.Code, respErr, restful.MIME_JSON))
 					} else {
 						logErr(resp.WriteErrorString(svcErr.Code, svcErr.Message))
 					}
+
 					return
 				}
+
 				logrus.Warn(err)
 				logErr(resp.WriteErrorString(http.StatusUnauthorized, err.Error()))
+
 				return
 			}
 		}
@@ -119,6 +126,7 @@ func WithValidUser() FilterOption {
 			return respondError(http.StatusForbidden, TokenIsNotUserToken,
 				"access forbidden: "+ErrorCodeMapping[TokenIsNotUserToken])
 		}
+
 		return nil
 	}
 }
@@ -135,10 +143,12 @@ func WithPermission(permission *iam.Permission) FilterOption {
 			return respondError(http.StatusInternalServerError, InternalServerError,
 				"unable to validate permission: "+err.Error())
 		}
+
 		if !valid {
 			return respondError(http.StatusForbidden, InsufficientPermissions,
 				"access forbidden: "+ErrorCodeMapping[InsufficientPermissions])
 		}
+
 		return nil
 	}
 }
@@ -151,10 +161,12 @@ func WithRole(role string) FilterOption {
 			return respondError(http.StatusInternalServerError, EIDWithRoleUnableValidateRole,
 				"unable to validate role: "+err.Error())
 		}
+
 		if !valid {
 			return respondError(http.StatusForbidden, EIDWithRoleInsufficientPermission,
 				"access forbidden: insufficient permission")
 		}
+
 		return nil
 	}
 }
@@ -167,10 +179,12 @@ func WithVerifiedEmail() FilterOption {
 			return respondError(http.StatusInternalServerError, EIDWithVerifiedEmailUnableValidateEmailStatus,
 				"unable to validate email status: "+err.Error())
 		}
+
 		if !verified {
 			return respondError(http.StatusForbidden, EIDWithVerifiedEmailInsufficientPermission,
 				"access forbidden: insufficient permission")
 		}
+
 		return nil
 	}
 }
@@ -183,6 +197,7 @@ func WithValidAudience() FilterOption {
 			return respondError(http.StatusForbidden, InvalidAudience,
 				"access forbidden: "+ErrorCodeMapping[InvalidAudience])
 		}
+
 		return nil
 	}
 }
@@ -195,6 +210,7 @@ func WithValidScope(scope string) FilterOption {
 			return respondError(http.StatusForbidden, InsufficientScope,
 				"access forbidden: "+ErrorCodeMapping[InsufficientScope])
 		}
+
 		return nil
 	}
 }
@@ -209,6 +225,7 @@ func parseAccessToken(request *restful.Request) (string, error) {
 	if len(tokenSplit) != 2 || tokenSplit[0] != "Bearer" {
 		return "", errors.New("incorrect token")
 	}
+
 	token := tokenSplit[1]
 
 	return token, nil
@@ -228,6 +245,7 @@ func respondError(httpStatus, errorCode int, errorMessage string) restful.Servic
 			ErrorCode:    InternalServerError,
 			ErrorMessage: "unable to parse error message : " + err.Error(),
 		})
+
 		return restful.ServiceError{
 			Code:    http.StatusInternalServerError,
 			Message: string(errMsgByte),

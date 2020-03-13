@@ -103,6 +103,7 @@ func TestWarnLog(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
+
 	resp := httptest.NewRecorder()
 	container.ServeHTTP(resp, req)
 
@@ -145,6 +146,7 @@ func TestDebugLog(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
+
 	resp := httptest.NewRecorder()
 	container.ServeHTTP(resp, req)
 
@@ -188,7 +190,9 @@ func TestErrorLog(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
+
 	resp := httptest.NewRecorder()
+
 	container.ServeHTTP(resp, req)
 
 	assert.Equal(t, "test", evt.Realm)
@@ -252,6 +256,7 @@ func TestWithNoEventID(t *testing.T) {
 //nolint: dupl,funlen // most part of the test is identical
 func TestInfoLogWithJWTClaims(t *testing.T) {
 	const ClaimsAttribute = "JWTClaims"
+
 	ws := new(restful.WebService)
 	extract := func(req *restful.Request) (userID string, clientID []string, namespace string, traceID string,
 		sessionID string) {
@@ -260,11 +265,13 @@ func TestInfoLogWithJWTClaims(t *testing.T) {
 			return claims.Subject, claims.Audience, claims.Namespace,
 				req.HeaderParameter(TraceIDKey), req.HeaderParameter(SessionIDKey)
 		}
+
 		return "", []string{}, "", req.HeaderParameter(TraceIDKey), req.HeaderParameter(SessionIDKey)
 	}
 	ws.Filter(Log("test", "iam", extract))
 
 	var evt *event
+
 	ws.Route(
 		ws.GET("/namespace/{namespace}/user/{id}").
 			Param(restful.PathParameter("namespace", "namespace")).
@@ -330,7 +337,9 @@ func TestFormatUTC(t *testing.T) {
 	if len(parts) == 0 {
 		assert.FailNow(t, "log parts can't be zero")
 	}
+
 	var timeString string
+
 	for _, part := range parts {
 		fields := strings.Split(part, "=")
 		if fields[0] == "time" {
