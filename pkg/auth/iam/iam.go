@@ -62,7 +62,7 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 		token, err := parseAccessToken(req)
 		if err != nil {
 			logrus.Warn("unauthorized access: ", err)
-			logErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
+			logIfErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
 				ErrorCode:    UnauthorizedAccess,
 				ErrorMessage: ErrorCodeMapping[UnauthorizedAccess],
 			}, restful.MIME_JSON))
@@ -73,7 +73,7 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 		claims, err := filter.iamClient.ValidateAndParseClaims(token)
 		if err != nil {
 			logrus.Warn("unauthorized access: ", err)
-			logErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
+			logIfErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
 				ErrorCode:    UnauthorizedAccess,
 				ErrorMessage: ErrorCodeMapping[UnauthorizedAccess],
 			}, restful.MIME_JSON))
@@ -90,16 +90,16 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 
 					err = json.Unmarshal([]byte(svcErr.Message), &respErr)
 					if err == nil {
-						logErr(resp.WriteHeaderAndJson(svcErr.Code, respErr, restful.MIME_JSON))
+						logIfErr(resp.WriteHeaderAndJson(svcErr.Code, respErr, restful.MIME_JSON))
 					} else {
-						logErr(resp.WriteErrorString(svcErr.Code, svcErr.Message))
+						logIfErr(resp.WriteErrorString(svcErr.Code, svcErr.Message))
 					}
 
 					return
 				}
 
 				logrus.Warn(err)
-				logErr(resp.WriteErrorString(http.StatusUnauthorized, err.Error()))
+				logIfErr(resp.WriteErrorString(http.StatusUnauthorized, err.Error()))
 
 				return
 			}
@@ -231,8 +231,10 @@ func parseAccessToken(request *restful.Request) (string, error) {
 	return token, nil
 }
 
-func logErr(err error) {
-	logrus.Error(err)
+func logIfErr(err error) {
+	if err != nil {
+		logrus.Error(err)
+	}
 }
 
 func respondError(httpStatus, errorCode int, errorMessage string) restful.ServiceError {
