@@ -7,7 +7,7 @@ This package contains filter for generating `jaeger span`
 ### Importing
 
 ```go
-import "github.com/AccelByte/go-restful-plugins/v3/pkg/jaeger"
+import "github.com/AccelByte/go-restful-plugins/v4/pkg/jaeger"
 ```
 
 ### Filter

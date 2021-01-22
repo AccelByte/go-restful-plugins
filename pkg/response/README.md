@@ -8,7 +8,7 @@ For the event logging please read logger/event package
 ### Importing
 
 ```go
-import "github.com/AccelByte/go-restful-plugins/v3/pkg/response"
+import "github.com/AccelByte/go-restful-plugins/v4/pkg/response"
 ```
 
 ### Write Response Success

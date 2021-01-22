@@ -1,18 +1,16 @@
-/*
- * Copyright 2018 AccelByte Inc
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2018 AccelByte Inc
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package datadog
 
@@ -21,13 +19,14 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful/v3"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/ext"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/mocktracer"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
+// nolint:paralleltest
 func TestChildSpan(t *testing.T) {
 	assert := assert.New(t)
 
@@ -50,6 +49,7 @@ func TestChildSpan(t *testing.T) {
 	container.ServeHTTP(w, r)
 }
 
+// nolint:paralleltest
 func TestTrace200(t *testing.T) {
 	assert := assert.New(t)
 
@@ -93,6 +93,7 @@ func TestTrace200(t *testing.T) {
 	assert.Equal("/user/123", span.Tag(ext.HTTPURL))
 }
 
+// nolint:paralleltest
 func TestError(t *testing.T) {
 	assert := assert.New(t)
 
@@ -130,6 +131,7 @@ func TestError(t *testing.T) {
 	assert.Equal(wantErr.Error(), span.Tag(ext.Error).(error).Error())
 }
 
+// nolint:paralleltest
 func TestGetSpanNotInstrumented(t *testing.T) {
 	assert := assert.New(t)
 
@@ -152,6 +154,7 @@ func TestGetSpanNotInstrumented(t *testing.T) {
 	assert.Equal(response.StatusCode, 200)
 }
 
+// nolint:paralleltest
 func TestPropagation(t *testing.T) {
 	assert := assert.New(t)
 
@@ -178,6 +181,7 @@ func TestPropagation(t *testing.T) {
 	container.ServeHTTP(w, r)
 }
 
+// nolint:paralleltest
 func TestInject(t *testing.T) {
 	assert := assert.New(t)
 
@@ -202,6 +206,4 @@ func TestInject(t *testing.T) {
 	container.ServeHTTP(w, r)
 }
 
-func ignoreErr(_ ...interface{}) {
-
-}
+func ignoreErr(_ ...interface{}) {}

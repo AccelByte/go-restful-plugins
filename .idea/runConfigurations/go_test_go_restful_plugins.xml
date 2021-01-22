@@ -1,0 +1,23 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="go test go-restful-plugins" type="GoTestRunConfiguration" factoryName="Go Test" nameIsGenerated="true">
+    <module name="go-restful-plugins" />
+    <working_directory value="$PROJECT_DIR$" />
+    <go_parameters value="-race -count=1 -v" />
+    <EXTENSION ID="net.ashald.envfile">
+      <option name="IS_ENABLED" value="false" />
+      <option name="IS_SUBST" value="false" />
+      <option name="IS_PATH_MACRO_SUPPORTED" value="false" />
+      <option name="IS_IGNORE_MISSING_FILES" value="false" />
+      <option name="IS_ENABLE_EXPERIMENTAL_INTEGRATIONS" value="false" />
+      <ENTRIES>
+        <ENTRY IS_ENABLED="true" PARSER="runconfig" />
+      </ENTRIES>
+    </EXTENSION>
+    <framework value="gotest" />
+    <kind value="DIRECTORY" />
+    <package value="github.com/AccelByte/go-restful-plugins/v3" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/" />
+    <method v="2" />
+  </configuration>
+</component>

@@ -1,3 +1,17 @@
+// Copyright 2021 AccelByte Inc
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package jaeger
 
 import (
@@ -5,10 +19,11 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
-	"github.com/AccelByte/go-restful-plugins/v3/pkg/logger/event"
-	"github.com/emicklei/go-restful"
+	"github.com/AccelByte/go-restful-plugins/v4/pkg/logger/event"
+	"github.com/emicklei/go-restful/v3"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
@@ -25,6 +40,8 @@ var forwardHeaders = [...]string{
 	"traceparent",
 	"grpc-trace-bin",
 }
+
+var globalTracerAccessMutex sync.Mutex
 
 // InitGlobalTracer initialize global tracer
 // Must be called in main function
@@ -78,7 +95,9 @@ func InitGlobalTracer(
 		jaegerclientgo.TracerOptions.PoolSpans(false),
 	)
 	// Set the singleton opentracing.Tracer with the Jaeger tracer.
+	globalTracerAccessMutex.Lock()
 	opentracing.SetGlobalTracer(newTracer)
+	globalTracerAccessMutex.Unlock()
 
 	return closer
 }
@@ -107,7 +126,7 @@ func InjectTrace(ctx context.Context, incomingReq *restful.Request,
 	}
 
 	if logrus.GetLevel() >= logrus.DebugLevel {
-		var header = make(map[string]string)
+		header := make(map[string]string)
 
 		for key, val := range outgoingReq.Header {
 			key = strings.ToLower(key)
@@ -131,7 +150,7 @@ func InjectTrace(ctx context.Context, incomingReq *restful.Request,
 // Any span not finished will not be sent to jaeger agent
 func StartSpan(req *restful.Request, operationName string) (opentracing.Span, context.Context) {
 	if logrus.GetLevel() >= logrus.DebugLevel {
-		var header = make(map[string]string)
+		header := make(map[string]string)
 
 		for key, val := range req.Request.Header {
 			key = strings.ToLower(key)
@@ -150,9 +169,9 @@ func StartSpan(req *restful.Request, operationName string) (opentracing.Span, co
 	if err != nil {
 		logrus.Debug("request has no tracing context: ", err.Error())
 
-		span = opentracing.StartSpan(operationName)
+		span = StartSpanSafe(operationName)
 	} else {
-		span = opentracing.StartSpan(
+		span = StartSpanSafe(
 			operationName,
 			opentracing.ChildOf(spanContext),
 		)
@@ -174,7 +193,7 @@ func StartSpan(req *restful.Request, operationName string) (opentracing.Span, co
 // Any span not finished will not be sent to jaeger agent
 func StartSpanIfParentSpanExist(req *restful.Request, operationName string) (opentracing.Span, context.Context) {
 	if logrus.GetLevel() >= logrus.DebugLevel {
-		var header = make(map[string]string)
+		header := make(map[string]string)
 
 		for key, val := range req.Request.Header {
 			key = strings.ToLower(key)
@@ -191,7 +210,7 @@ func StartSpanIfParentSpanExist(req *restful.Request, operationName string) (ope
 		return nil, nil
 	}
 
-	span := opentracing.StartSpan(
+	span := StartSpanSafe(
 		operationName,
 		opentracing.ChildOf(spanContext),
 	)
@@ -205,6 +224,13 @@ func StartSpanIfParentSpanExist(req *restful.Request, operationName string) (ope
 	return span, opentracing.ContextWithSpan(req.Request.Context(), span)
 }
 
+func StartSpanSafe(operationName string, opts ...opentracing.StartSpanOption) opentracing.Span {
+	globalTracerAccessMutex.Lock()
+	defer globalTracerAccessMutex.Unlock()
+
+	return opentracing.StartSpan(operationName, opts...)
+}
+
 func ChildSpanFromRemoteSpan(
 	rootCtx context.Context,
 	name string,
@@ -212,7 +238,7 @@ func ChildSpanFromRemoteSpan(
 ) (opentracing.Span, context.Context) {
 	spanContext, err := jaegerclientgo.ContextFromString(spanContextStr)
 	if err == nil {
-		return opentracing.StartSpan(
+		return StartSpanSafe(
 			name,
 			opentracing.ChildOf(spanContext),
 		), rootCtx
@@ -232,6 +258,9 @@ func StartDBSpan(ctx context.Context, operationName string) (opentracing.Span, c
 // Span returned here must be finished with span.finish()
 // Any span not finished will not be sent to jaeger agent
 func StartSpanFromContext(ctx context.Context, operationName string) (opentracing.Span, context.Context) {
+	globalTracerAccessMutex.Lock()
+	defer globalTracerAccessMutex.Unlock()
+
 	if ctx != nil {
 		childSpan, childCtx := opentracing.StartSpanFromContext(ctx, operationName)
 		return childSpan, childCtx
@@ -242,7 +271,7 @@ func StartSpanFromContext(ctx context.Context, operationName string) (opentracin
 
 func StartChildSpan(span opentracing.Span, name string) opentracing.Span {
 	if span != nil {
-		return opentracing.StartSpan(
+		return StartSpanSafe(
 			name,
 			opentracing.ChildOf(span.Context()),
 		)
@@ -252,6 +281,9 @@ func StartChildSpan(span opentracing.Span, name string) opentracing.Span {
 }
 
 func InjectSpanIntoRequest(span opentracing.Span, req *http.Request) error {
+	globalTracerAccessMutex.Lock()
+	defer globalTracerAccessMutex.Unlock()
+
 	if span != nil {
 		err := opentracing.GlobalTracer().Inject(
 			span.Context(),
@@ -267,6 +299,9 @@ func InjectSpanIntoRequest(span opentracing.Span, req *http.Request) error {
 
 // ExtractRequestHeader to extract SpanContext from request header
 func ExtractRequestHeader(req *restful.Request) (opentracing.SpanContext, error) {
+	globalTracerAccessMutex.Lock()
+	defer globalTracerAccessMutex.Unlock()
+
 	return opentracing.GlobalTracer().Extract(
 		opentracing.HTTPHeaders,
 		opentracing.HTTPHeadersCarrier(req.Request.Header))
