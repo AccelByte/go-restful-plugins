@@ -96,8 +96,9 @@ func InitGlobalTracer(
 	)
 	// Set the singleton opentracing.Tracer with the Jaeger tracer.
 	globalTracerAccessMutex.Lock()
+	defer globalTracerAccessMutex.Unlock()
+
 	opentracing.SetGlobalTracer(newTracer)
-	globalTracerAccessMutex.Unlock()
 
 	return closer
 }
