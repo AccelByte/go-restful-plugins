@@ -7,7 +7,7 @@ This package utils in go-restful apps.
 ### Importing
 
 ```go
-import "github.com/AccelByte/go-restful-plugins/v3/pkg/util"
+import "github.com/AccelByte/go-restful-plugins/v4/pkg/util"
 ```
 
 ### ExtractDefault

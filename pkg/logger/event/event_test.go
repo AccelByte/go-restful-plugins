@@ -1,18 +1,16 @@
-/*
- * Copyright 2018-2019 AccelByte Inc
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2018-2019 AccelByte Inc
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package event
 
@@ -25,13 +23,16 @@ import (
 
 	"github.com/AccelByte/go-jose/jwt"
 	"github.com/AccelByte/iam-go-sdk"
-	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful/v3"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// nolint: dupl // most part of the test is identical
+// nolint: dupl
 func TestInfoLog(t *testing.T) {
+	t.Parallel()
+
 	ws := new(restful.WebService)
 	ws.Filter(Log("test", "iam", extractNull))
 
@@ -77,8 +78,10 @@ func TestInfoLog(t *testing.T) {
 	assert.Contains(t, evt.additionalFields, "test")
 }
 
-// nolint: dupl // most part of the test is identical
+// nolint: dupl
 func TestWarnLog(t *testing.T) {
+	t.Parallel()
+
 	ws := new(restful.WebService)
 	ws.Filter(Log("test", "iam", extractNull))
 
@@ -120,8 +123,10 @@ func TestWarnLog(t *testing.T) {
 	assert.Contains(t, evt.additionalFields, "test")
 }
 
-// nolint: dupl // most part of the test is identical
+// nolint: dupl
 func TestDebugLog(t *testing.T) {
+	t.Parallel()
+
 	ws := new(restful.WebService)
 	ws.Filter(Log("test", "iam", extractNull))
 
@@ -163,8 +168,10 @@ func TestDebugLog(t *testing.T) {
 	assert.Contains(t, evt.additionalFields, "test")
 }
 
-// nolint: dupl // most part of the test is identical
+// nolint: dupl
 func TestErrorLog(t *testing.T) {
+	t.Parallel()
+
 	ws := new(restful.WebService)
 	ws.Filter(Log("test", "iam", extractNull))
 
@@ -209,8 +216,10 @@ func TestErrorLog(t *testing.T) {
 	assert.Contains(t, evt.additionalFields, "test")
 }
 
-// nolint: dupl // most part of the test is identical
+// nolint: dupl
 func TestWithNoEventID(t *testing.T) {
+	t.Parallel()
+
 	ws := new(restful.WebService)
 	ws.Filter(Log("test", "iam", extractNull))
 
@@ -253,8 +262,10 @@ func TestWithNoEventID(t *testing.T) {
 	assert.Contains(t, evt.additionalFields, "test")
 }
 
-//nolint: dupl,funlen // most part of the test is identical
+//nolint: dupl,funlen
 func TestInfoLogWithJWTClaims(t *testing.T) {
+	t.Parallel()
+
 	const ClaimsAttribute = "JWTClaims"
 
 	ws := new(restful.WebService)
@@ -323,15 +334,19 @@ func TestInfoLogWithJWTClaims(t *testing.T) {
 }
 
 func TestFormatUTC(t *testing.T) {
+	t.Parallel()
+
 	timeFormat := "2006-01-02T15:04:05.999Z07:00"
 	timeSample := "2019-01-02T12:34:56.789+07:00"
-	timeLogSample, _ := time.Parse(timeFormat, timeSample) // nolint: gosec // ignore error in test
+	timeLogSample, err := time.Parse(timeFormat, timeSample)
+	require.NoError(t, err)
 
 	sampleLog := &logrus.Entry{
 		Time: timeLogSample,
 	}
 
 	out, err := UTCFormatter{&logrus.TextFormatter{TimestampFormat: millisecondTimeFormat}}.Format(sampleLog)
+	require.NoError(t, err)
 
 	parts := strings.Split(string(out), " ")
 	if len(parts) == 0 {
@@ -347,6 +362,5 @@ func TestFormatUTC(t *testing.T) {
 		}
 	}
 
-	assert.Nil(t, err, "error should be nil")
 	assert.Equal(t, "\"2019-01-02T05:34:56.789Z\"", timeString, "time string is not equal")
 }

@@ -1,0 +1,11 @@
+# Default ignored files
+/shelf/
+go-restful-plugins.iml
+$CACHE_FILE$
+atlassian-ide-plugin.xml
+misc.xml
+modules.xml
+rSettings.xml
+vcs.xml
+watcherTasks.xml
+codeStyles

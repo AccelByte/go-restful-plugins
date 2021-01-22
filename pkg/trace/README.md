@@ -7,7 +7,7 @@ This package contains filter for generating `traceID` (`X-Ab-TraceID` header fie
 ### Importing
 
 ```go
-import "github.com/AccelByte/go-restful-plugins/v3/pkg/trace"
+import "github.com/AccelByte/go-restful-plugins/v4/pkg/trace"
 ```
 
 ### Filter

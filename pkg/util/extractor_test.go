@@ -1,18 +1,16 @@
-/*
- * Copyright 2019 AccelByte Inc
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2019 AccelByte Inc
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package util
 
@@ -22,14 +20,16 @@ import (
 	"testing"
 
 	"github.com/AccelByte/go-jose/jwt"
-	"github.com/AccelByte/go-restful-plugins/v3/pkg/logger/event"
+	"github.com/AccelByte/go-restful-plugins/v4/pkg/logger/event"
 	"github.com/AccelByte/iam-go-sdk"
-	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful/v3"
 	"github.com/stretchr/testify/assert"
 )
 
 //nolint: dupl,funlen // most part of the test is identical
 func TestExtractDefaultWithJWT(t *testing.T) {
+	t.Parallel()
+
 	ws := new(restful.WebService)
 
 	var UserID, Namespace, traceID, sessionID string
@@ -71,8 +71,9 @@ func TestExtractDefaultWithJWT(t *testing.T) {
 	assert.Equal(t, "testSesssionID", sessionID)
 }
 
-//nolint: dupl,funlen // most part of the test is identical
 func TestExtractDefaultWithoutJWT(t *testing.T) {
+	t.Parallel()
+
 	ws := new(restful.WebService)
 
 	var UserID, Namespace, traceID, sessionID string

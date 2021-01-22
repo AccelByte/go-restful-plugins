@@ -1,23 +1,21 @@
-/*
- * Copyright 2018 AccelByte Inc
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2018 AccelByte Inc
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package event
 
 import (
-	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful/v3"
 	"github.com/fatih/structs"
 	"github.com/sirupsen/logrus"
 )
@@ -112,6 +110,12 @@ func Log(realm string, service string, fn extractAttribute) restful.FilterFuncti
 			log.Warn(evt.Message)
 		case logrus.DebugLevel:
 			log.Debug(evt.Message)
+		case logrus.InfoLevel:
+			log.Info(evt.Message)
+		case logrus.PanicLevel:
+			log.Panic(evt.Message)
+		case logrus.TraceLevel:
+			log.Trace(evt.Message)
 		default:
 			log.Info()
 		}
