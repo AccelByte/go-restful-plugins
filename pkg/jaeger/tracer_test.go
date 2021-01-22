@@ -76,7 +76,10 @@ func TestChildSpanFromRemoteSpan(t *testing.T) {
 	closer := InitGlobalTracer("", "", "test", "")
 	defer closer.Close()
 
+	// limit access to a shared library
+	globalTracerAccessMutex.Lock()
 	expectedSpan, _ := opentracing.StartSpanFromContext(context.Background(), "test")
+	globalTracerAccessMutex.Unlock()
 
 	spanContextStr := expectedSpan.Context().(jaegerclientgo.SpanContext).String()
 
