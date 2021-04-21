@@ -28,6 +28,9 @@ import (
 // ClaimsAttribute is the key for JWT claims stored in the request
 const ClaimsAttribute = "JWTClaims"
 
+// AccessTokenCookieKey is the key for Access Token cookie
+const AccessTokenCookieKey = "access_token"
+
 // FilterOption extends the basic auth filter functionality
 type FilterOption func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error
 
@@ -214,6 +217,12 @@ func WithValidScope(scope string) FilterOption {
 }
 
 func parseAccessToken(request *restful.Request) (string, error) {
+	for _, cookie := range request.Request.Cookies() {
+		if cookie.Name == AccessTokenCookieKey && cookie.Value != "" {
+			return cookie.Value, nil
+		}
+	}
+
 	authorization := request.HeaderParameter("Authorization")
 	if authorization == "" {
 		return "", errors.New("unable to get Authorization header")
