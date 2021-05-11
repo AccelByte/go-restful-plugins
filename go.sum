@@ -12,6 +12,8 @@ github.com/AccelByte/iam-go-sdk v1.5.0 h1:Z4t9tOuusrbvMVfn6D0czohgLCM5nknSh3uaxP
 github.com/AccelByte/iam-go-sdk v1.5.0/go.mod h1:/+V6I1hNzib2IGZ9IGaKOa/zBIIKrG4Hnk/q96W74kU=
 github.com/AccelByte/iam-go-sdk v1.6.1-0.20210405044005-78e2f7c47c45 h1:RdZiCtTdzvDy7arhvM603yaOQX8dehPl/GMtSuJYQx8=
 github.com/AccelByte/iam-go-sdk v1.6.1-0.20210405044005-78e2f7c47c45/go.mod h1:/+V6I1hNzib2IGZ9IGaKOa/zBIIKrG4Hnk/q96W74kU=
+github.com/AccelByte/iam-go-sdk v1.7.0 h1:JUTMRghKbS7MMOnqujkd2Wp2PUiNnZKHS6u1hSaeCAo=
+github.com/AccelByte/iam-go-sdk v1.7.0/go.mod h1:NA4n8yx/WU+BqdserLE/xaECC+2BSm6Buxli1PbYarg=
 github.com/AccelByte/legal-go-sdk v0.0.0-20210405152112-4c61182fa45b h1:F1GbZ4b1ICAUZe9dmy5Y+WDAZ8pPrtCRxr3ONegXo+s=
 github.com/AccelByte/legal-go-sdk v0.0.0-20210405152112-4c61182fa45b/go.mod h1:W7xGOpsspq8SVw98DimWlVWjHbaaNmBQnVOrfQvrP+U=
 github.com/AccelByte/public-source-ip v1.0.0 h1:S/CeuU4cpejCexb2hUps9mYZ8BbqPeIWC27HyDI0ajQ=
