@@ -25,11 +25,15 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// ClaimsAttribute is the key for JWT claims stored in the request
-const ClaimsAttribute = "JWTClaims"
+const (
+	// ClaimsAttribute is the key for JWT claims stored in the request
+	ClaimsAttribute = "JWTClaims"
 
-// AccessTokenCookieKey is the key for Access Token cookie
-const AccessTokenCookieKey = "access_token"
+	accessTokenCookieKey = "access_token"
+	refererHeaderKey     = "Referer"
+	tokenFromCookie      = "cookie"
+	tokenFromHeader      = "header"
+)
 
 // FilterOption extends the basic auth filter functionality
 type FilterOption func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error
@@ -50,7 +54,7 @@ func NewFilter(client iam.Client) *Filter {
 	return &Filter{iamClient: client}
 }
 
-// Auth returns a filter that filters request with valid access token in auth header
+// Auth returns a filter that filters request with valid access token in auth header or cookie
 // The token's claims will be passed in the request.attributes["JWTClaims"] = *iam.JWTClaims{}
 // This filter is expandable through FilterOption parameter
 // Example:
@@ -60,7 +64,7 @@ func NewFilter(client iam.Client) *Filter {
 // )
 func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 	return func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
-		token, err := parseAccessToken(req)
+		token, tokenFrom, err := parseAccessToken(req)
 		if err != nil {
 			logrus.Warn("unauthorized access: ", err)
 			logIfErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
@@ -80,6 +84,18 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 			}, restful.MIME_JSON))
 
 			return
+		}
+
+		if tokenFrom == tokenFromCookie {
+			valid := filter.validateRefererHeader(req, claims)
+			if !valid {
+				logIfErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
+					ErrorCode:    InvalidRefererHeader,
+					ErrorMessage: ErrorCodeMapping[InvalidRefererHeader],
+				}, restful.MIME_JSON))
+
+				return
+			}
 		}
 
 		for _, opt := range opts {
@@ -216,26 +232,51 @@ func WithValidScope(scope string) FilterOption {
 	}
 }
 
-func parseAccessToken(request *restful.Request) (string, error) {
+// parseAccessToken is used to read token from Authorization Header or Cookie.
+// it will return the token value and token from.
+func parseAccessToken(request *restful.Request) (string, string, error) {
 	for _, cookie := range request.Request.Cookies() {
-		if cookie.Name == AccessTokenCookieKey && cookie.Value != "" {
-			return cookie.Value, nil
+		if cookie.Name == accessTokenCookieKey && cookie.Value != "" {
+			return cookie.Value, tokenFromCookie, nil
 		}
 	}
 
 	authorization := request.HeaderParameter("Authorization")
 	if authorization == "" {
-		return "", errors.New("unable to get Authorization header")
+		return "", "", errors.New("unable to get Authorization header")
 	}
 
 	tokenSplit := strings.Split(authorization, " ")
 	if len(tokenSplit) != 2 || tokenSplit[0] != "Bearer" {
-		return "", errors.New("incorrect token")
+		return "", "", errors.New("incorrect token")
 	}
-
 	token := tokenSplit[1]
 
-	return token, nil
+	return token, tokenFromHeader, nil
+}
+
+// validateRefererHeader is used validate the referer header against client's redirectURIs.
+func (filter *Filter) validateRefererHeader(request *restful.Request, claims *iam.JWTClaims) bool {
+	clientInfo, err := filter.iamClient.GetClientInformation(claims.Namespace, claims.ClientID)
+	if err != nil {
+		logrus.Errorf("validate referer header error: %v", err.Error())
+		return false
+	}
+	if len(clientInfo.RedirectURI) == 0 {
+		return true
+	}
+
+	refererHeader := request.HeaderParameter(refererHeaderKey)
+	clientRedirectURIs := strings.Split(clientInfo.RedirectURI, ",")
+	for _, redirectURI := range clientRedirectURIs {
+		if strings.HasPrefix(refererHeader, redirectURI) {
+			return true
+		}
+	}
+
+	logrus.Warnf("request has invalid referer header. referer header: %s. client redirect uri: %s",
+		refererHeader, clientInfo.RedirectURI)
+	return false
 }
 
 func logIfErr(err error) {
