@@ -15,12 +15,12 @@ import "github.com/AccelByte/go-restful-plugins/pkg/auth/legal"
 This filter depends on [Legal client](https://github.com/AccelByte/legal-go-sdk) passed through the constructor.
 
 ```go
-filter := iam.NewFilter(iamClient)
+filter := legal.NewFilter(legalClient)
 ```
 
 ### Constructing filter
 
-The default `Eligibility()` filter validates the accepted policy version in JWT claims.
+The default `Eligibility()` filter validates the accepted policy versions in JWT claims against the latest crucial mandatory policies.
 
 ```go
 ws := new(restful.WebService)
@@ -29,11 +29,11 @@ ws.Filter(filter.Eligibility())
 
 ### Reading JWT Claims
 
-`Eligibility()` filter will will get JWT claims to `restful.Request.attribute` from the `Auth()` filter.
+`Eligibility()` filter will get JWT claims to `restful.Request.attribute` from the `Auth()` filter.
 
 **Note**
 
-Retrieved claims can be `nil` if the request not filtered using `Auth()` before  
+Retrieved claims can be `nil` if the request not filtered using `Auth()` first.  
 
 ### Filter all endpoints
 
