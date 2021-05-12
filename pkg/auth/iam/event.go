@@ -41,6 +41,7 @@ const (
 	UnableToParseRequestBody    = 20019
 	InvalidPaginationParameters = 20021
 	TokenIsNotUserToken         = 20022
+	InvalidRefererHeader        = 20023
 )
 
 var ErrorCodeMapping = map[int]string{
@@ -57,4 +58,5 @@ var ErrorCodeMapping = map[int]string{
 	UnableToParseRequestBody:    "unable to parse request body",
 	InvalidPaginationParameters: "invalid pagination parameter",
 	TokenIsNotUserToken:         "token is not user token",
+	InvalidRefererHeader:        "invalid referer header",
 }
