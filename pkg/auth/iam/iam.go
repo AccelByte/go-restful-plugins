@@ -235,24 +235,20 @@ func WithValidScope(scope string) FilterOption {
 // parseAccessToken is used to read token from Authorization Header or Cookie.
 // it will return the token value and token from.
 func parseAccessToken(request *restful.Request) (string, string, error) {
+	authorization := request.HeaderParameter("Authorization")
+	if strings.HasPrefix(authorization, "Bearer ") {
+		if token := strings.TrimPrefix(authorization, "Bearer "); token != "" {
+			return token, tokenFromHeader, nil
+		}
+	}
+
 	for _, cookie := range request.Request.Cookies() {
 		if cookie.Name == accessTokenCookieKey && cookie.Value != "" {
 			return cookie.Value, tokenFromCookie, nil
 		}
 	}
 
-	authorization := request.HeaderParameter("Authorization")
-	if authorization == "" {
-		return "", "", errors.New("unable to get Authorization header")
-	}
-
-	tokenSplit := strings.Split(authorization, " ")
-	if len(tokenSplit) != 2 || tokenSplit[0] != "Bearer" {
-		return "", "", errors.New("incorrect token")
-	}
-	token := tokenSplit[1]
-
-	return token, tokenFromHeader, nil
+	return "", "", errors.New("token not provided in request header")
 }
 
 // validateRefererHeader is used validate the referer header against client's redirectURIs.
