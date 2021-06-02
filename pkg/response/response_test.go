@@ -23,7 +23,7 @@ import (
 
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/logger/event"
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/util"
-	"github.com/emicklei/go-restful/v3"
+	"github.com/emicklei/go-restful"
 	"github.com/stretchr/testify/assert"
 )
 

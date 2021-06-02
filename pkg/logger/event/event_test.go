@@ -23,7 +23,7 @@ import (
 
 	"github.com/AccelByte/go-jose/jwt"
 	"github.com/AccelByte/iam-go-sdk"
-	"github.com/emicklei/go-restful/v3"
+	"github.com/emicklei/go-restful"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

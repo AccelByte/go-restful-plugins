@@ -22,7 +22,7 @@ import (
 	"github.com/AccelByte/go-jose/jwt"
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/logger/event"
 	"github.com/AccelByte/iam-go-sdk"
-	"github.com/emicklei/go-restful/v3"
+	"github.com/emicklei/go-restful"
 	"github.com/stretchr/testify/assert"
 )
 

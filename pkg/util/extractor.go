@@ -16,7 +16,7 @@ package util
 
 import (
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/auth/iam"
-	"github.com/emicklei/go-restful/v3"
+	"github.com/emicklei/go-restful"
 )
 
 const (

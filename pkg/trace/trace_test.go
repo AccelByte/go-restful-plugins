@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/emicklei/go-restful/v3"
+	"github.com/emicklei/go-restful"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )

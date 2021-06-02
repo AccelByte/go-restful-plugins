@@ -19,7 +19,7 @@ import (
 	"time"
 
 	publicsourceip "github.com/AccelByte/public-source-ip"
-	"github.com/emicklei/go-restful/v3"
+	"github.com/emicklei/go-restful"
 	"github.com/sirupsen/logrus"
 )
 

@@ -19,7 +19,7 @@ import (
 
 	"github.com/AccelByte/iam-go-sdk"
 	"github.com/AccelByte/legal-go-sdk"
-	"github.com/emicklei/go-restful/v3"
+	"github.com/emicklei/go-restful"
 	"github.com/sirupsen/logrus"
 )
 

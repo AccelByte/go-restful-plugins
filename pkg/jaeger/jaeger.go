@@ -19,7 +19,7 @@ import (
 	"fmt"
 
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/trace"
-	"github.com/emicklei/go-restful/v3"
+	"github.com/emicklei/go-restful"
 )
 
 type contextKeyType string

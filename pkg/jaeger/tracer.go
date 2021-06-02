@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/logger/event"
-	"github.com/emicklei/go-restful/v3"
+	"github.com/emicklei/go-restful"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
