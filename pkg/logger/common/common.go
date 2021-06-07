@@ -25,6 +25,7 @@ import (
 
 // Log is a filter that will log incoming request with Common Log Format
 func Log(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
+	start := time.Now()
 	username := "-"
 
 	if req.Request.URL.User != nil {
@@ -34,7 +35,9 @@ func Log(req *restful.Request, resp *restful.Response, chain *restful.FilterChai
 	}
 
 	chain.ProcessFilter(req, resp)
-	logrus.Infof(`%s - %s [%s] "%s %s %s" %d %d`,
+
+	duration := time.Since(start)
+	logrus.Infof(`%s - %s [%s] "%s %s %s" %d %d %d`,
 		publicsourceip.PublicIP(&http.Request{Header: req.Request.Header}),
 		username,
 		time.Now().Format("02/Jan/2006:15:04:05 -0700"),
@@ -43,5 +46,6 @@ func Log(req *restful.Request, resp *restful.Response, chain *restful.FilterChai
 		req.Request.Proto,
 		resp.StatusCode(),
 		resp.ContentLength(),
+		duration.Milliseconds(),
 	)
 }
