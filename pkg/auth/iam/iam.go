@@ -38,9 +38,15 @@ const (
 // FilterOption extends the basic auth filter functionality
 type FilterOption func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error
 
+// FilterInitializationOptions hold options for Filter during initialization
+type FilterInitializationOptions struct {
+	StrictRefererHeaderValidation bool // Enable full path check of redirect uri in referer header validation
+}
+
 // Filter handles auth using filter
 type Filter struct {
 	iamClient iam.Client
+	options   *FilterInitializationOptions
 }
 
 // ErrorResponse is the generic structure for communicating errors from a REST endpoint.
@@ -51,7 +57,12 @@ type ErrorResponse struct {
 
 // NewFilter creates new Filter instance
 func NewFilter(client iam.Client) *Filter {
-	return &Filter{iamClient: client}
+	return &Filter{iamClient: client, options: &FilterInitializationOptions{}}
+}
+
+// NewFilterWithOptions creates new Filter instance with Options
+func NewFilterWithOptions(client iam.Client, options *FilterInitializationOptions) *Filter {
+	return &Filter{iamClient: client, options: options}
 }
 
 // Auth returns a filter that filters request with valid access token in auth header or cookie
@@ -265,6 +276,9 @@ func (filter *Filter) validateRefererHeader(request *restful.Request, claims *ia
 	refererHeader := request.HeaderParameter(refererHeaderKey)
 	clientRedirectURIs := strings.Split(clientInfo.RedirectURI, ",")
 	for _, redirectURI := range clientRedirectURIs {
+		if !filter.options.StrictRefererHeaderValidation {
+			redirectURI = getDomain(redirectURI)
+		}
 		if strings.HasPrefix(refererHeader, redirectURI) {
 			return true
 		}
