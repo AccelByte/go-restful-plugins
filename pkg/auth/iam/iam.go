@@ -63,6 +63,9 @@ func NewFilter(client iam.Client) *Filter {
 
 // NewFilterWithOptions creates new Filter instance with Options
 func NewFilterWithOptions(client iam.Client, options *FilterInitializationOptions) *Filter {
+	if options == nil {
+		return &Filter{iamClient: client, options: &FilterInitializationOptions{}}
+	}
 	return &Filter{iamClient: client, options: options}
 }
 
