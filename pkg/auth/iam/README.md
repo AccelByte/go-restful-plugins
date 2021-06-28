@@ -16,8 +16,18 @@ This filter depends on [IAM client](https://github.com/AccelByte/iam-go-sdk) pas
 
 The client should be ready to do local token validation by calling `iamClient.StartLocalValidation()` first. To do permission checking too, the client will need client token, which can be retrived using `iamClient.ClientTokenGrant()`.
 
+Create Filter:
 ```go
 filter := iam.NewFilter(iamClient)
+```
+
+Create Filter with custom options:
+```go
+options := &FilterInitializationOptions {
+	StrictRefererHeaderValidation: true // Enable full path check of redirect uri in referer header validation (default: false)
+}
+
+filter := iam.NewFilterWithOptions(iamClient, options)
 ```
 
 ### Constructing filter
