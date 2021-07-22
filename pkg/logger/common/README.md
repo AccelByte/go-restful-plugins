@@ -26,3 +26,11 @@ ws.Route(ws.GET("/user/{id}").
     To(func(request *restful.Request, response *restful.Response) {
 }))
 ```
+
+### Environment variables
+#### FULL_ACCESS_LOG_ENABLED
+Enable full access log mode. Default: false.
+
+#### FULL_ACCESS_LOG_SUPPORTED_CONTENT_TYPES
+Supported content types to shown in request_body and response_body log.
+Default: application/json,application/xml,application/x-www-form-urlencoded,text/plain,text/html.

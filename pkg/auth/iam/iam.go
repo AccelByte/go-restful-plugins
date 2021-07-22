@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/auth/util"
+	"github.com/AccelByte/go-restful-plugins/v4/pkg/constant"
 	"github.com/AccelByte/iam-go-sdk"
 	"github.com/emicklei/go-restful/v3"
 	"github.com/sirupsen/logrus"
@@ -31,7 +32,6 @@ const (
 	ClaimsAttribute = "JWTClaims"
 
 	accessTokenCookieKey = "access_token"
-	refererHeaderKey     = "Referer"
 	tokenFromCookie      = "cookie"
 	tokenFromHeader      = "header"
 )
@@ -101,6 +101,8 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 			return
 		}
 
+		req.SetAttribute(ClaimsAttribute, claims)
+
 		if tokenFrom == tokenFromCookie {
 			valid := filter.validateRefererHeader(req, claims)
 			if !valid {
@@ -136,8 +138,6 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 				return
 			}
 		}
-
-		req.SetAttribute(ClaimsAttribute, claims)
 
 		chain.ProcessFilter(req, resp)
 	}
@@ -277,7 +277,7 @@ func (filter *Filter) validateRefererHeader(request *restful.Request, claims *ia
 		return true
 	}
 
-	refererHeader := request.HeaderParameter(refererHeaderKey)
+	refererHeader := request.HeaderParameter(constant.Referer)
 	clientRedirectURIs := strings.Split(clientInfo.RedirectURI, ",")
 	for _, redirectURI := range clientRedirectURIs {
 		if !filter.options.StrictRefererHeaderValidation {

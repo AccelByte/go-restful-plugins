@@ -15,16 +15,71 @@
 package common
 
 import (
+	"bytes"
+	"io/ioutil"
 	"net/http"
+	"os"
+	"strconv"
+	"strings"
 	"time"
 
+	"github.com/AccelByte/go-restful-plugins/v4/pkg/auth/iam"
+	"github.com/AccelByte/go-restful-plugins/v4/pkg/constant"
+	"github.com/AccelByte/go-restful-plugins/v4/pkg/trace"
+	"github.com/AccelByte/go-restful-plugins/v4/pkg/util"
 	publicsourceip "github.com/AccelByte/public-source-ip"
 	"github.com/emicklei/go-restful/v3"
 	"github.com/sirupsen/logrus"
 )
 
-// Log is a filter that will log incoming request with Common Log Format
+var (
+	FullAccessLogEnabled               bool
+	FullAccessLogSupportedContentTypes []string
+	FullAccessLogMaxBodySize           int
+)
+
+const (
+	commonLogFormat     = `%s - %s [%s] "%s %s %s" %d %d %d`
+	fullAccessLogFormat = `time=%s log_type=access method=%s path="%s" status=%d duration=%d length=%d source_ip=%s user_agent="%s" referer="%s" trace_id=%s namespace=%s user_id=%s client_id=%s request_content_type="%s" request_body=AB[%s]AB response_content_type="%s" response_body=AB[%s]AB`
+)
+
+func init() {
+	if s, exists := os.LookupEnv("FULL_ACCESS_LOG_ENABLED"); exists {
+		value, err := strconv.ParseBool(s)
+		if err != nil {
+			logrus.Errorf("Parse FULL_ACCESS_LOG_ENABLED env error: %v", err)
+		}
+		FullAccessLogEnabled = value
+	}
+
+	if s, exists := os.LookupEnv("FULL_ACCESS_LOG_SUPPORTED_CONTENT_TYPES"); exists {
+		FullAccessLogSupportedContentTypes = strings.Split(s, ",")
+	} else {
+		FullAccessLogSupportedContentTypes = []string{"application/json", "application/xml", "application/x-www-form-urlencoded", "text/plain", "text/html"}
+	}
+
+	if s, exists := os.LookupEnv("FULL_ACCESS_LOG_MAX_BODY_SIZE"); exists {
+		value, err := strconv.ParseInt(s, 0, 64)
+		if err != nil {
+			logrus.Errorf("Parse FULL_ACCESS_LOG_MAX_BODY_SIZE env error: %v", err)
+		}
+		FullAccessLogMaxBodySize = int(value)
+	} else {
+		FullAccessLogMaxBodySize = 1 << 20 // 1MB
+	}
+}
+
+// Log is a filter that will log incoming request into the defined Log format
 func Log(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
+	if FullAccessLogEnabled {
+		fullAccessLogFilter(req, resp, chain)
+	} else {
+		simpleAccessLogFilter(req, resp, chain)
+	}
+}
+
+// simpleAccessLogFilter will print the access log in simple common log format
+func simpleAccessLogFilter(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
 	start := time.Now()
 	username := "-"
 
@@ -37,7 +92,7 @@ func Log(req *restful.Request, resp *restful.Response, chain *restful.FilterChai
 	chain.ProcessFilter(req, resp)
 
 	duration := time.Since(start)
-	logrus.Infof(`%s - %s [%s] "%s %s %s" %d %d %d`,
+	logrus.Infof(commonLogFormat,
 		publicsourceip.PublicIP(&http.Request{Header: req.Request.Header}),
 		username,
 		time.Now().Format("02/Jan/2006:15:04:05 -0700"),
@@ -48,4 +103,105 @@ func Log(req *restful.Request, resp *restful.Response, chain *restful.FilterChai
 		resp.ContentLength(),
 		duration.Milliseconds(),
 	)
+}
+
+// fullAccessLogFilter will print the access log in complete log format
+func fullAccessLogFilter(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
+	start := time.Now()
+
+	sourceIP := publicsourceip.PublicIP(&http.Request{Header: req.Request.Header})
+	referer := req.HeaderParameter(constant.Referer)
+	userAgent := req.HeaderParameter(constant.UserAgent)
+	requestContentType := req.HeaderParameter(constant.ContentType)
+	requestBody := getRequestBody(req, requestContentType)
+
+	// decorate the original http.ResponseWriter with ResponseWriterInterceptor so we can intercept to get the response bytes
+	respWriterInterceptor := &ResponseWriterInterceptor{ResponseWriter: resp.ResponseWriter}
+	resp.ResponseWriter = respWriterInterceptor
+
+	chain.ProcessFilter(req, resp)
+
+	responseContentType := respWriterInterceptor.Header().Get(constant.ContentType)
+	responseBody := getResponseBody(respWriterInterceptor, responseContentType)
+	traceID := req.Attribute(trace.TraceIDKey)
+
+	var tokenNamespace, tokenUserID, tokenClientID string
+	if jwtClaims := iam.RetrieveJWTClaims(req); jwtClaims != nil {
+		tokenNamespace = jwtClaims.Namespace
+		tokenUserID = jwtClaims.Subject
+		tokenClientID = jwtClaims.ClientID
+	}
+
+	duration := time.Since(start)
+
+	logrus.Infof(fullAccessLogFormat,
+		time.Now().Format("2006-01-02T15:04:05.000Z"),
+		req.Request.Method,
+		req.Request.URL.RequestURI(),
+		resp.StatusCode(),
+		duration.Milliseconds(),
+		resp.ContentLength(),
+		sourceIP,
+		userAgent,
+		referer,
+		traceID,
+		tokenNamespace,
+		tokenUserID,
+		tokenClientID,
+		requestContentType,
+		requestBody,
+		responseContentType,
+		responseBody,
+	)
+}
+
+// getRequestBody will get the request body from Request object
+func getRequestBody(req *restful.Request, contentType string) string {
+	if contentType == "" || !isSupportedContentType(contentType) {
+		return ""
+	}
+
+	bodyBytes, err := ioutil.ReadAll(req.Request.Body)
+	if err != nil {
+		logrus.Errorf("failed to read request body: %v", err.Error())
+	}
+	if len(bodyBytes) != 0 {
+		// set the original bytes back into request body reader
+		req.Request.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+
+		if len(bodyBytes) > FullAccessLogMaxBodySize {
+			return "data too large"
+		}
+
+		if strings.Contains(contentType, "application/json") {
+			return util.MinifyJSON(bodyBytes)
+		}
+		return string(bodyBytes)
+	}
+	return ""
+}
+
+// getResponseBody will get the response body from ResponseWriterInterceptor object
+func getResponseBody(respWriter *ResponseWriterInterceptor, contentType string) string {
+	if contentType == "" || !isSupportedContentType(contentType) {
+		return ""
+	}
+
+	if len(respWriter.data) > FullAccessLogMaxBodySize {
+		return "data too large"
+	}
+
+	if strings.Contains(contentType, "application/json") {
+		return util.MinifyJSON(respWriter.data)
+	}
+	return string(respWriter.data)
+}
+
+func isSupportedContentType(contentType string) bool {
+	for _, v := range FullAccessLogSupportedContentTypes {
+		if strings.Contains(contentType, v) {
+			return true
+		}
+	}
+	return false
 }

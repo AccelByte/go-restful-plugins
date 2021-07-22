@@ -16,7 +16,19 @@ Filter is restful.FilterFunction for generating traceID (X-Ab-TraceID header fie
 
 #### Example usage of filter for all endpoints
 
+#### Example usage of filter for all endpoints
+Simple initialization:
 ```go
 ws := new(restful.WebService)
 ws.Filter(trace.Filter())
 ```
+
+With option initialization:
+```go
+ws := new(restful.WebService)
+ws.Filter(trace.FilterWithOption(trace.SimpleTraceID))
+```
+
+Supported TraceID Type:
+- SimpleTraceID = "uuid" format
+- TimeBasedTraceID (default) = "requestTime-uuid" format

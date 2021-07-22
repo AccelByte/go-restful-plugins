@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/AccelByte/go-restful-plugins/v4/pkg/constant"
 	"github.com/AccelByte/iam-go-sdk"
 	"github.com/emicklei/go-restful/v3"
 	"github.com/stretchr/testify/assert"
@@ -32,7 +33,7 @@ func TestValidateRefererHeader(t *testing.T) {
 	correctRequest1 := &restful.Request{
 		Request: &http.Request{
 			Header: map[string][]string{
-				refererHeaderKey: {"http://127.0.0.1"},
+				constant.Referer: {"http://127.0.0.1"},
 			},
 		},
 	}
@@ -41,7 +42,7 @@ func TestValidateRefererHeader(t *testing.T) {
 	correctRequest2 := &restful.Request{
 		Request: &http.Request{
 			Header: map[string][]string{
-				refererHeaderKey: {"http://127.0.0.1/path/path"},
+				constant.Referer: {"http://127.0.0.1/path/path"},
 			},
 		},
 	}
@@ -50,7 +51,7 @@ func TestValidateRefererHeader(t *testing.T) {
 	incorrectRequest1 := &restful.Request{
 		Request: &http.Request{
 			Header: map[string][]string{
-				refererHeaderKey: {"http://127.0.0.2"},
+				constant.Referer: {"http://127.0.0.2"},
 			},
 		},
 	}
@@ -59,7 +60,7 @@ func TestValidateRefererHeader(t *testing.T) {
 	incorrectRequest2 := &restful.Request{
 		Request: &http.Request{
 			Header: map[string][]string{
-				refererHeaderKey: {""},
+				constant.Referer: {""},
 			},
 		},
 	}
@@ -77,7 +78,7 @@ func TestValidateRefererHeaderWithCustomFilterOptions(t *testing.T) {
 	correctRequest := &restful.Request{
 		Request: &http.Request{
 			Header: map[string][]string{
-				refererHeaderKey: {"http://127.0.0.1"},
+				constant.Referer: {"http://127.0.0.1"},
 			},
 		},
 	}
@@ -90,7 +91,7 @@ func TestValidateRefererHeaderWithCustomFilterOptions(t *testing.T) {
 	correctRequest2 := &restful.Request{
 		Request: &http.Request{
 			Header: map[string][]string{
-				refererHeaderKey: {"http://127.0.0.1"},
+				constant.Referer: {"http://127.0.0.1"},
 			},
 		},
 	}
