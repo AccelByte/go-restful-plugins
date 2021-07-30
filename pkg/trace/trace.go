@@ -24,20 +24,42 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// IDType is the type for trace_id
+type IDType string
+
 const (
 	TraceIDKey = "X-Ab-TraceID"
+
+	SimpleTraceID    IDType = "Simple"    // format: uuid
+	TimeBasedTraceID IDType = "TimeBased" // format: requestTime-uuid
 )
 
 func Filter() restful.FilterFunction {
+	return initFilter(TimeBasedTraceID)
+}
+
+func FilterWithOption(traceIDType IDType) restful.FilterFunction {
+	return initFilter(traceIDType)
+}
+
+func initFilter(traceIDType IDType) restful.FilterFunction {
 	return func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
-		if req.HeaderParameter(TraceIDKey) == "" {
-			traceID, err := generateUUID()
+		traceID := req.HeaderParameter(TraceIDKey)
+		if traceID == "" {
+			var err error
+			traceID, err = generateUUID()
 			if err != nil {
 				logrus.Errorf("Unable to generate UUID %s", err.Error())
 			}
 
-			req.Request.Header.Add(TraceIDKey, fmt.Sprintf("%x-%s", time.Now().UTC().Unix(), traceID))
+			if traceIDType == TimeBasedTraceID {
+				traceID = fmt.Sprintf("%x-%s", time.Now().UTC().Unix(), traceID)
+			}
+			req.Request.Header.Add(TraceIDKey, traceID)
 		}
+
+		req.SetAttribute(TraceIDKey, traceID)
+		resp.Header().Set(TraceIDKey, traceID)
 
 		chain.ProcessFilter(req, resp)
 	}
