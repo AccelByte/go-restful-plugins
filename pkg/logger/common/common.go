@@ -16,6 +16,7 @@ package common
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -58,14 +59,13 @@ func init() {
 		FullAccessLogSupportedContentTypes = []string{"application/json", "application/xml", "application/x-www-form-urlencoded", "text/plain", "text/html"}
 	}
 
+	FullAccessLogMaxBodySize = 10 << 10 // 10KB
 	if s, exists := os.LookupEnv("FULL_ACCESS_LOG_MAX_BODY_SIZE"); exists {
 		value, err := strconv.ParseInt(s, 0, 64)
 		if err != nil {
 			logrus.Errorf("Parse FULL_ACCESS_LOG_MAX_BODY_SIZE env error: %v", err)
 		}
 		FullAccessLogMaxBodySize = int(value)
-	} else {
-		FullAccessLogMaxBodySize = 1 << 20 // 1MB
 	}
 }
 
@@ -92,7 +92,7 @@ func simpleAccessLogFilter(req *restful.Request, resp *restful.Response, chain *
 	chain.ProcessFilter(req, resp)
 
 	duration := time.Since(start)
-	logrus.Infof(commonLogFormat,
+	fmt.Println(fmt.Sprintf(commonLogFormat,
 		publicsourceip.PublicIP(&http.Request{Header: req.Request.Header}),
 		username,
 		time.Now().Format("02/Jan/2006:15:04:05 -0700"),
@@ -102,7 +102,7 @@ func simpleAccessLogFilter(req *restful.Request, resp *restful.Response, chain *
 		resp.StatusCode(),
 		resp.ContentLength(),
 		duration.Milliseconds(),
-	)
+	))
 }
 
 // fullAccessLogFilter will print the access log in complete log format
@@ -134,7 +134,7 @@ func fullAccessLogFilter(req *restful.Request, resp *restful.Response, chain *re
 
 	duration := time.Since(start)
 
-	logrus.Infof(fullAccessLogFormat,
+	fmt.Println(fmt.Sprintf(fullAccessLogFormat,
 		time.Now().Format("2006-01-02T15:04:05.000Z"),
 		req.Request.Method,
 		req.Request.URL.RequestURI(),
@@ -152,7 +152,7 @@ func fullAccessLogFilter(req *restful.Request, resp *restful.Response, chain *re
 		requestBody,
 		responseContentType,
 		responseBody,
-	)
+	))
 }
 
 // getRequestBody will get the request body from Request object
