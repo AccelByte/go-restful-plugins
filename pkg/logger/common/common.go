@@ -92,7 +92,7 @@ func simpleAccessLogFilter(req *restful.Request, resp *restful.Response, chain *
 	chain.ProcessFilter(req, resp)
 
 	duration := time.Since(start)
-	fmt.Println(fmt.Sprintf(commonLogFormat,
+	logrus.Infof(fmt.Sprintf(commonLogFormat,
 		publicsourceip.PublicIP(&http.Request{Header: req.Request.Header}),
 		username,
 		time.Now().Format("02/Jan/2006:15:04:05 -0700"),
@@ -135,7 +135,7 @@ func fullAccessLogFilter(req *restful.Request, resp *restful.Response, chain *re
 	duration := time.Since(start)
 
 	fmt.Println(fmt.Sprintf(fullAccessLogFormat,
-		time.Now().Format("2006-01-02T15:04:05.000Z"),
+		time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
 		req.Request.Method,
 		req.Request.URL.RequestURI(),
 		resp.StatusCode(),
