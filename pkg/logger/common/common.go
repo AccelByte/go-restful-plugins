@@ -36,12 +36,23 @@ var (
 	FullAccessLogEnabled               bool
 	FullAccessLogSupportedContentTypes []string
 	FullAccessLogMaxBodySize           int
+
+	fullAccessLogLogger *logrus.Logger
 )
 
 const (
 	commonLogFormat     = `%s - %s [%s] "%s %s %s" %d %d %d`
 	fullAccessLogFormat = `time=%s log_type=access method=%s path="%s" status=%d duration=%d length=%d source_ip=%s user_agent="%s" referer="%s" trace_id=%s namespace=%s user_id=%s client_id=%s request_content_type="%s" request_body=AB[%s]AB response_content_type="%s" response_body=AB[%s]AB`
 )
+
+// fullAccessLogFormatter represent logrus.Formatter,
+// this is used to print the custom format for access log.
+type fullAccessLogFormatter struct {
+}
+
+func (f *fullAccessLogFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	return []byte(entry.Message + "\n"), nil
+}
 
 func init() {
 	if s, exists := os.LookupEnv("FULL_ACCESS_LOG_ENABLED"); exists {
@@ -58,14 +69,13 @@ func init() {
 		FullAccessLogSupportedContentTypes = []string{"application/json", "application/xml", "application/x-www-form-urlencoded", "text/plain", "text/html"}
 	}
 
+	FullAccessLogMaxBodySize = 10 << 10 // 10KB
 	if s, exists := os.LookupEnv("FULL_ACCESS_LOG_MAX_BODY_SIZE"); exists {
 		value, err := strconv.ParseInt(s, 0, 64)
 		if err != nil {
 			logrus.Errorf("Parse FULL_ACCESS_LOG_MAX_BODY_SIZE env error: %v", err)
 		}
 		FullAccessLogMaxBodySize = int(value)
-	} else {
-		FullAccessLogMaxBodySize = 1 << 20 // 1MB
 	}
 }
 
@@ -107,6 +117,15 @@ func simpleAccessLogFilter(req *restful.Request, resp *restful.Response, chain *
 
 // fullAccessLogFilter will print the access log in complete log format
 func fullAccessLogFilter(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
+	// initialize custom logger for full access log
+	if fullAccessLogLogger == nil {
+		fullAccessLogLogger = &logrus.Logger{
+			Out:       os.Stdout,
+			Level:     logrus.GetLevel(),
+			Formatter: &fullAccessLogFormatter{},
+		}
+	}
+
 	start := time.Now()
 
 	sourceIP := publicsourceip.PublicIP(&http.Request{Header: req.Request.Header})
@@ -134,8 +153,8 @@ func fullAccessLogFilter(req *restful.Request, resp *restful.Response, chain *re
 
 	duration := time.Since(start)
 
-	logrus.Infof(fullAccessLogFormat,
-		time.Now().Format("2006-01-02T15:04:05.000Z"),
+	fullAccessLogLogger.Infof(fullAccessLogFormat,
+		time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
 		req.Request.Method,
 		req.Request.URL.RequestURI(),
 		resp.StatusCode(),
