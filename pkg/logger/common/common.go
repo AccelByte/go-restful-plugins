@@ -16,7 +16,6 @@ package common
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -37,12 +36,23 @@ var (
 	FullAccessLogEnabled               bool
 	FullAccessLogSupportedContentTypes []string
 	FullAccessLogMaxBodySize           int
+
+	fullAccessLogLogger *logrus.Logger
 )
 
 const (
 	commonLogFormat     = `%s - %s [%s] "%s %s %s" %d %d %d`
 	fullAccessLogFormat = `time=%s log_type=access method=%s path="%s" status=%d duration=%d length=%d source_ip=%s user_agent="%s" referer="%s" trace_id=%s namespace=%s user_id=%s client_id=%s request_content_type="%s" request_body=AB[%s]AB response_content_type="%s" response_body=AB[%s]AB`
 )
+
+// fullAccessLogFormatter represent logrus.Formatter,
+// this is used to print the custom format for access log.
+type fullAccessLogFormatter struct {
+}
+
+func (f *fullAccessLogFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	return []byte(entry.Message + "\n"), nil
+}
 
 func init() {
 	if s, exists := os.LookupEnv("FULL_ACCESS_LOG_ENABLED"); exists {
@@ -92,7 +102,7 @@ func simpleAccessLogFilter(req *restful.Request, resp *restful.Response, chain *
 	chain.ProcessFilter(req, resp)
 
 	duration := time.Since(start)
-	logrus.Infof(fmt.Sprintf(commonLogFormat,
+	logrus.Infof(commonLogFormat,
 		publicsourceip.PublicIP(&http.Request{Header: req.Request.Header}),
 		username,
 		time.Now().Format("02/Jan/2006:15:04:05 -0700"),
@@ -102,11 +112,20 @@ func simpleAccessLogFilter(req *restful.Request, resp *restful.Response, chain *
 		resp.StatusCode(),
 		resp.ContentLength(),
 		duration.Milliseconds(),
-	))
+	)
 }
 
 // fullAccessLogFilter will print the access log in complete log format
 func fullAccessLogFilter(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
+	// initialize custom logger for full access log
+	if fullAccessLogLogger == nil {
+		fullAccessLogLogger = &logrus.Logger{
+			Out:       os.Stdout,
+			Level:     logrus.GetLevel(),
+			Formatter: &fullAccessLogFormatter{},
+		}
+	}
+
 	start := time.Now()
 
 	sourceIP := publicsourceip.PublicIP(&http.Request{Header: req.Request.Header})
@@ -134,7 +153,7 @@ func fullAccessLogFilter(req *restful.Request, resp *restful.Response, chain *re
 
 	duration := time.Since(start)
 
-	fmt.Println(fmt.Sprintf(fullAccessLogFormat,
+	fullAccessLogLogger.Infof(fullAccessLogFormat,
 		time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
 		req.Request.Method,
 		req.Request.URL.RequestURI(),
@@ -152,7 +171,7 @@ func fullAccessLogFilter(req *restful.Request, resp *restful.Response, chain *re
 		requestBody,
 		responseContentType,
 		responseBody,
-	))
+	)
 }
 
 // getRequestBody will get the request body from Request object
