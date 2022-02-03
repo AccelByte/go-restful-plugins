@@ -25,6 +25,7 @@ import (
 
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/auth/iam"
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/constant"
+	"github.com/AccelByte/go-restful-plugins/v4/pkg/logger/log"
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/trace"
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/util"
 	publicsourceip "github.com/AccelByte/public-source-ip"
@@ -151,12 +152,25 @@ func fullAccessLogFilter(req *restful.Request, resp *restful.Response, chain *re
 		tokenClientID = jwtClaims.ClientID
 	}
 
+	requestUri := req.Request.URL.RequestURI()
+
+	// mask sensitive field(s) in query params, request body and response body
+	if maskedQueryParams := req.Attribute(log.MaskedQueryParams); maskedQueryParams != nil {
+		requestUri = log.MaskQueryParams(requestUri, maskedQueryParams.(string))
+	}
+	if maskedRequestFields := req.Attribute(log.MaskedRequestFields); maskedRequestFields != nil && requestBody != "" {
+		requestBody = log.MaskFields(requestContentType, requestBody, maskedRequestFields.(string))
+	}
+	if maskedResponseFields := req.Attribute(log.MaskedResponseFields); maskedResponseFields != nil && responseBody != "" {
+		responseBody = log.MaskFields(responseContentType, responseBody, maskedResponseFields.(string))
+	}
+
 	duration := time.Since(start)
 
 	fullAccessLogLogger.Infof(fullAccessLogFormat,
 		time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
 		req.Request.Method,
-		req.Request.URL.RequestURI(),
+		requestUri,
 		resp.StatusCode(),
 		duration.Milliseconds(),
 		resp.ContentLength(),
