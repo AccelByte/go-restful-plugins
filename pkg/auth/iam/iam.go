@@ -143,6 +143,54 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 	}
 }
 
+// PublicAuth returns a filter that allow unauthenticate request and request with valid access token in auth header or cookie
+// If request has acces token, the token's claims will be passed in the request.attributes["JWTClaims"] = *iam.JWTClaims{}
+// If request has invalid access token, then request treated as public access without claims
+// This filter is expandable through FilterOption parameter
+// Example:
+// iam.PublicAuth(
+// 		WithValidUser(),
+//		WithPermission("ADMIN"),
+// )
+func (filter *Filter) PublicAuth(opts ...FilterOption) restful.FilterFunction {
+	return func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
+		token, tokenFrom, err := parseAccessToken(req)
+		if err != nil {
+			chain.ProcessFilter(req, resp)
+			return
+		}
+
+		claims, err := filter.iamClient.ValidateAndParseClaims(token)
+		if err != nil {
+			logrus.Warn("unauthorized access for public endpoint: ", err)
+			chain.ProcessFilter(req, resp)
+			return
+		}
+
+		req.SetAttribute(ClaimsAttribute, claims)
+
+		if tokenFrom == tokenFromCookie {
+			valid := filter.validateRefererHeader(req, claims)
+			if !valid {
+				req.SetAttribute(ClaimsAttribute, nil)
+				chain.ProcessFilter(req, resp)
+				return
+			}
+		}
+
+		for _, opt := range opts {
+			if err = opt(req, filter.iamClient, claims); err != nil {
+				logrus.Warn(err)
+				req.SetAttribute(ClaimsAttribute, nil)
+				chain.ProcessFilter(req, resp)
+				return
+			}
+		}
+
+		chain.ProcessFilter(req, resp)
+	}
+}
+
 // RetrieveJWTClaims is a convenience function to retrieve JWT claims
 // from restful.Request.
 // Warning: the claims can be nil if the request wasn't filtered through Auth()
