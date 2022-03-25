@@ -90,12 +90,62 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 			return
 		}
 
-		filter.validateUser(opts, req, resp, chain, token, tokenFrom)
+		claims, err := filter.iamClient.ValidateAndParseClaims(token)
+		if err != nil {
+			logrus.Warn("unauthorized access: ", err)
+			logIfErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
+				ErrorCode:    UnauthorizedAccess,
+				ErrorMessage: ErrorCodeMapping[UnauthorizedAccess],
+			}, restful.MIME_JSON))
+
+			return
+		}
+
+		req.SetAttribute(ClaimsAttribute, claims)
+
+		if tokenFrom == tokenFromCookie {
+			valid := filter.validateRefererHeader(req, claims)
+			if !valid {
+				logIfErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
+					ErrorCode:    InvalidRefererHeader,
+					ErrorMessage: ErrorCodeMapping[InvalidRefererHeader],
+				}, restful.MIME_JSON))
+
+				return
+			}
+		}
+
+		for _, opt := range opts {
+			if err = opt(req, filter.iamClient, claims); err != nil {
+				if svcErr, ok := err.(restful.ServiceError); ok {
+					logrus.Warn(svcErr.Message)
+
+					var respErr ErrorResponse
+
+					err = json.Unmarshal([]byte(svcErr.Message), &respErr)
+					if err == nil {
+						logIfErr(resp.WriteHeaderAndJson(svcErr.Code, respErr, restful.MIME_JSON))
+					} else {
+						logIfErr(resp.WriteErrorString(svcErr.Code, svcErr.Message))
+					}
+
+					return
+				}
+
+				logrus.Warn(err)
+				logIfErr(resp.WriteErrorString(http.StatusUnauthorized, err.Error()))
+
+				return
+			}
+		}
+
+		chain.ProcessFilter(req, resp)
 	}
 }
 
 // PublicAuth returns a filter that allow unauthenticate request and request with valid access token in auth header or cookie
 // If request has acces token, the token's claims will be passed in the request.attributes["JWTClaims"] = *iam.JWTClaims{}
+// If request has invalid access token, then request treated as public access without claims
 // This filter is expandable through FilterOption parameter
 // Example:
 // iam.PublicAuth(
@@ -110,61 +160,35 @@ func (filter *Filter) PublicAuth(opts ...FilterOption) restful.FilterFunction {
 			return
 		}
 
-		filter.validateUser(opts, req, resp, chain, token, tokenFrom)
-	}
-}
-
-func (filter *Filter) validateUser(opts []FilterOption, req *restful.Request, resp *restful.Response, chain *restful.FilterChain, token, tokenFrom string) {
-	claims, err := filter.iamClient.ValidateAndParseClaims(token)
-	if err != nil {
-		logrus.Warn("unauthorized access: ", err)
-		logIfErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
-			ErrorCode:    UnauthorizedAccess,
-			ErrorMessage: ErrorCodeMapping[UnauthorizedAccess],
-		}, restful.MIME_JSON))
-
-		return
-	}
-
-	req.SetAttribute(ClaimsAttribute, claims)
-
-	if tokenFrom == tokenFromCookie {
-		valid := filter.validateRefererHeader(req, claims)
-		if !valid {
-			logIfErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
-				ErrorCode:    InvalidRefererHeader,
-				ErrorMessage: ErrorCodeMapping[InvalidRefererHeader],
-			}, restful.MIME_JSON))
-
+		claims, err := filter.iamClient.ValidateAndParseClaims(token)
+		if err != nil {
+			logrus.Warn("unauthorized access for public endpoint: ", err)
+			chain.ProcessFilter(req, resp)
 			return
 		}
-	}
 
-	for _, opt := range opts {
-		if err = opt(req, filter.iamClient, claims); err != nil {
-			if svcErr, ok := err.(restful.ServiceError); ok {
-				logrus.Warn(svcErr.Message)
+		req.SetAttribute(ClaimsAttribute, claims)
 
-				var respErr ErrorResponse
-
-				err = json.Unmarshal([]byte(svcErr.Message), &respErr)
-				if err == nil {
-					logIfErr(resp.WriteHeaderAndJson(svcErr.Code, respErr, restful.MIME_JSON))
-				} else {
-					logIfErr(resp.WriteErrorString(svcErr.Code, svcErr.Message))
-				}
-
+		if tokenFrom == tokenFromCookie {
+			valid := filter.validateRefererHeader(req, claims)
+			if !valid {
+				req.SetAttribute(ClaimsAttribute, nil)
+				chain.ProcessFilter(req, resp)
 				return
 			}
-
-			logrus.Warn(err)
-			logIfErr(resp.WriteErrorString(http.StatusUnauthorized, err.Error()))
-
-			return
 		}
-	}
 
-	chain.ProcessFilter(req, resp)
+		for _, opt := range opts {
+			if err = opt(req, filter.iamClient, claims); err != nil {
+				logrus.Warn(err)
+				req.SetAttribute(ClaimsAttribute, nil)
+				chain.ProcessFilter(req, resp)
+				return
+			}
+		}
+
+		chain.ProcessFilter(req, resp)
+	}
 }
 
 // RetrieveJWTClaims is a convenience function to retrieve JWT claims
