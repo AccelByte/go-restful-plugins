@@ -1,3 +1,8 @@
+Release v3.2.0 (2022-03-29)
+===========================
+- Add filter to match the subdomain to the namespace in the user token
+- Add option to allow validating referer from a subdomain
+
 Release v3.1.3 (2019-12-12)
 ===========================
 - Add `WriteErrorWithEventID` in `response` package

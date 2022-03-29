@@ -25,6 +25,7 @@ const (
 	EIDAccessDenied                               = 1154005
 	EIDInsufficientScope                          = 1154006
 	UnableToMarshalErrorResponse                  = 1155004
+	EIDSubdomainMismatch                          = 1154007
 )
 
 const (
@@ -42,6 +43,7 @@ const (
 	InvalidPaginationParameters = 20021
 	TokenIsNotUserToken         = 20022
 	InvalidRefererHeader        = 20023
+	SubdomainMismatch           = 20024
 )
 
 var ErrorCodeMapping = map[int]string{
@@ -59,4 +61,5 @@ var ErrorCodeMapping = map[int]string{
 	InvalidPaginationParameters: "invalid pagination parameter",
 	TokenIsNotUserToken:         "token is not user token",
 	InvalidRefererHeader:        "invalid referer header",
+	SubdomainMismatch:           "subdomain mismatch",
 }

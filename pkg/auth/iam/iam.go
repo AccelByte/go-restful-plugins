@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/auth/util"
@@ -41,7 +42,8 @@ type FilterOption func(req *restful.Request, iamClient iam.Client, claims *iam.J
 
 // FilterInitializationOptions hold options for Filter during initialization
 type FilterInitializationOptions struct {
-	StrictRefererHeaderValidation bool // Enable full path check of redirect uri in referer header validation
+	StrictRefererHeaderValidation              bool // Enable full path check of redirect uri in referer header validation
+	AllowSubdomainMatchRefererHeaderValidation bool // Allow checking with subdomain
 }
 
 // Filter handles auth using filter
@@ -247,6 +249,36 @@ func WithValidScope(scope string) FilterOption {
 	}
 }
 
+// WithMatchedSubdomain filters request to a subdomain to match it with namespace in user's token
+func WithMatchedSubdomain(excludedNamespaces []string) FilterOption {
+	return func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error {
+		parsedURL, err := url.Parse(req.Request.Host)
+		if err != nil {
+			// error parsing means the request comes from internal call, for example service to service call
+			return nil
+		}
+
+		part := strings.Split(parsedURL.Host, ".")
+		if len(part) < 3 {
+			// url with subdomain should have at least 3 part, e.g. foo.example.com, otherwise we should not check it
+			return nil
+		}
+
+		for _, excludedNS := range excludedNamespaces {
+			if excludedNS == claims.Namespace {
+				return nil
+			}
+		}
+
+		if claims.Namespace == part[0] {
+			return nil
+		}
+
+		return respondError(http.StatusNotFound, SubdomainMismatch,
+			"data not found: "+ErrorCodeMapping[SubdomainMismatch])
+	}
+}
+
 // parseAccessToken is used to read token from Authorization Header or Cookie.
 // it will return the token value and token from.
 func parseAccessToken(request *restful.Request) (string, string, error) {
@@ -283,13 +315,41 @@ func (filter *Filter) validateRefererHeader(request *restful.Request, claims *ia
 		if !filter.options.StrictRefererHeaderValidation {
 			redirectURI = util.GetDomain(redirectURI)
 		}
-		if strings.HasPrefix(refererHeader, redirectURI) {
-			return true
+		if filter.options.AllowSubdomainMatchRefererHeaderValidation {
+			if validateRefererWithSubdomain(refererHeader, redirectURI) {
+				return true
+			}
+		} else {
+			if strings.HasPrefix(refererHeader, redirectURI) {
+				return true
+			}
 		}
 	}
 
 	logrus.Warnf("request has invalid referer header. referer header: %s. client redirect uri: %s",
 		refererHeader, clientInfo.RedirectURI)
+	return false
+}
+
+func validateRefererWithSubdomain(refererHeader string, clientRedirectURI string) bool {
+	refererURL, err := url.Parse(refererHeader)
+	if err != nil {
+		return false
+	}
+
+	clientRedirectURL, err := url.Parse(clientRedirectURI)
+	if err != nil {
+		return false
+	}
+
+	if refererURL.Scheme != clientRedirectURL.Scheme {
+		return false
+	}
+
+	if strings.HasSuffix(refererURL.Host, clientRedirectURL.Host) {
+		return true
+	}
+
 	return false
 }
 
