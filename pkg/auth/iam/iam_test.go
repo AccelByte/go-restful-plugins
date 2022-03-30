@@ -97,3 +97,67 @@ func TestValidateRefererHeaderWithCustomFilterOptions(t *testing.T) {
 	}
 	assert.Equal(t, true, filterWithStrictRefererHeaderValidation.validateRefererHeader(correctRequest2, userTokenClaims2))
 }
+
+// nolint:paralleltest
+func TestValidateRefererHeaderWithSubdomain(t *testing.T) {
+	iamClient := &iam.MockClient{
+		Healthy:     true,
+		RedirectURI: "https://example.com",
+	}
+
+	testcases := []struct {
+		name          string
+		refererHeader string
+		filter        *Filter
+		allowed       bool
+	}{
+		{
+			name:          "allowed_with_subdomain_option_enabled",
+			refererHeader: "https://subdomain.example.com",
+			filter:        NewFilterWithOptions(iamClient, &FilterInitializationOptions{AllowSubdomainMatchRefererHeaderValidation: true}),
+			allowed:       true,
+		},
+		{
+			name:          "allowed_with_subdomain_option_enabled_without_subdomain",
+			refererHeader: "https://example.com",
+			filter:        NewFilterWithOptions(iamClient, &FilterInitializationOptions{AllowSubdomainMatchRefererHeaderValidation: true}),
+			allowed:       true,
+		},
+		{
+			name:          "rejected_without_option",
+			refererHeader: "https://subdomain.example.com",
+			filter:        NewFilterWithOptions(iamClient, nil),
+			allowed:       false,
+		},
+		{
+			name:          "rejected_without_option_domain_mismatch",
+			refererHeader: "https://example.net",
+			filter:        NewFilterWithOptions(iamClient, &FilterInitializationOptions{AllowSubdomainMatchRefererHeaderValidation: true}),
+			allowed:       false,
+		},
+		{
+			name:          "rejected_with_option_scheme_mismatch",
+			refererHeader: "http://example.com",
+			filter:        NewFilterWithOptions(iamClient, &FilterInitializationOptions{AllowSubdomainMatchRefererHeaderValidation: true}),
+			allowed:       false,
+		},
+	}
+
+	for _, testcase := range testcases {
+		t.Run(testcase.name, func(t *testing.T) {
+			userTokenClaims, _ := testcase.filter.iamClient.ValidateAndParseClaims("dummyToken")
+
+			correctRequest := &restful.Request{
+				Request: &http.Request{
+					Header: map[string][]string{
+						constant.Referer: {testcase.refererHeader},
+					},
+				},
+			}
+
+			actual := testcase.filter.validateRefererHeader(correctRequest, userTokenClaims)
+
+			assert.Equal(t, testcase.allowed, actual)
+		})
+	}
+}

@@ -9,8 +9,8 @@ github.com/AccelByte/go-restful-plugins/v3 v3.2.2 h1:ToyjfA3bir1IWfEXc4Uqgj9tOlE
 github.com/AccelByte/go-restful-plugins/v3 v3.2.2/go.mod h1:XkhxnbfR/0z5lj2xI2SVbSuF5PhCi39xVYmVODwFf7k=
 github.com/AccelByte/iam-go-sdk v1.1.2/go.mod h1:M1Eplqpph/Msxm7XKgZRI+cYBCCChFdgPiVdKYupwq8=
 github.com/AccelByte/iam-go-sdk v1.6.1-0.20210405044005-78e2f7c47c45/go.mod h1:/+V6I1hNzib2IGZ9IGaKOa/zBIIKrG4Hnk/q96W74kU=
-github.com/AccelByte/iam-go-sdk v1.7.0 h1:JUTMRghKbS7MMOnqujkd2Wp2PUiNnZKHS6u1hSaeCAo=
-github.com/AccelByte/iam-go-sdk v1.7.0/go.mod h1:NA4n8yx/WU+BqdserLE/xaECC+2BSm6Buxli1PbYarg=
+github.com/AccelByte/iam-go-sdk v1.7.1 h1:LOA0XhzdriQ7kdGUG1bfqjjbb9ake/a3o0R0/C3Omqo=
+github.com/AccelByte/iam-go-sdk v1.7.1/go.mod h1:NA4n8yx/WU+BqdserLE/xaECC+2BSm6Buxli1PbYarg=
 github.com/AccelByte/legal-go-sdk v0.0.0-20210405152112-4c61182fa45b h1:F1GbZ4b1ICAUZe9dmy5Y+WDAZ8pPrtCRxr3ONegXo+s=
 github.com/AccelByte/legal-go-sdk v0.0.0-20210405152112-4c61182fa45b/go.mod h1:W7xGOpsspq8SVw98DimWlVWjHbaaNmBQnVOrfQvrP+U=
 github.com/AccelByte/public-source-ip v1.0.0/go.mod h1:L7zIgt3UaXkGH7NoKFCbxPdWZOVwn+d6uW/5yYRXtnQ=
