@@ -63,19 +63,19 @@ func InitGlobalTracer(
 	if jaegerAgentHost == "" && jaegerCollectorEndpoint == "" {
 		reporter = jaegerclientgo.NewNullReporter() // for running locally
 
-		logrus.Info("Jaeger client configured to be silent")
+		logrus.Debug("Jaeger client configured to be silent")
 	} else {
 		var sender jaegerclientgo.Transport
 		if jaegerCollectorEndpoint != "" {
 			sender = transport.NewHTTPTransport(jaegerCollectorEndpoint)
-			logrus.Infof("Jaeger client configured to use the collector: %s", jaegerCollectorEndpoint)
+			logrus.Debugf("Jaeger client configured to use the collector: %s", jaegerCollectorEndpoint)
 		} else {
 			var err error
 			sender, err = jaegerclientgo.NewUDPTransport(jaegerAgentHost, 0)
 			if err != nil {
 				logrus.Errorf("Jaeger transport initialization error: %s", err.Error())
 			}
-			logrus.Infof("Jaeger client configured to use the agent: %s", jaegerAgentHost)
+			logrus.Debugf("Jaeger client configured to use the agent: %s", jaegerAgentHost)
 		}
 
 		reporter = jaegerclientgo.NewRemoteReporter(
@@ -159,8 +159,6 @@ func StartSpan(req *restful.Request, operationName string) (opentracing.Span, co
 				header[key] = val[0]
 			}
 		}
-
-		logrus.Debug("incoming header : ", header)
 	}
 
 	spanContext, err := ExtractRequestHeader(req)
@@ -168,8 +166,6 @@ func StartSpan(req *restful.Request, operationName string) (opentracing.Span, co
 	var span opentracing.Span
 
 	if err != nil {
-		logrus.Debug("request has no tracing context: ", err.Error())
-
 		span = StartSpanSafe(operationName)
 	} else {
 		span = StartSpanSafe(
@@ -357,7 +353,7 @@ func GetSpanFromRestfulContext(ctx context.Context) opentracing.Span {
 		return span
 	}
 
-	logrus.Info("missed initialization of restful plugin jaeger.Filter")
+	logrus.Debug("missed initialization of restful plugin jaeger.Filter")
 
 	span, _ := StartSpanFromContext(ctx, "unnamed")
 
