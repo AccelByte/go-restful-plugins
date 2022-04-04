@@ -300,31 +300,36 @@ func WithValidScope(scope string) FilterOption {
 // WithMatchedSubdomain filters request to a subdomain to match it with namespace in user's token
 func WithMatchedSubdomain(excludedNamespaces []string) FilterOption {
 	return func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error {
-		parsedURL, err := url.Parse(req.Request.Host)
-		if err != nil {
-			// error parsing means the request comes from internal call, for example service to service call
-			return nil
-		}
-
-		part := strings.Split(parsedURL.Host, ".")
+		part := strings.Split(getHost(req.Request), ".")
 		if len(part) < 3 {
 			// url with subdomain should have at least 3 part, e.g. foo.example.com, otherwise we should not check it
 			return nil
 		}
 
 		for _, excludedNS := range excludedNamespaces {
-			if excludedNS == claims.Namespace {
+			if strings.ToLower(excludedNS) == strings.ToLower(claims.Namespace) {
 				return nil
 			}
 		}
 
-		if claims.Namespace == part[0] {
+		if strings.ToLower(claims.Namespace) == strings.ToLower(part[0]) {
 			return nil
 		}
 
 		return respondError(http.StatusNotFound, SubdomainMismatch,
 			"data not found: "+ErrorCodeMapping[SubdomainMismatch])
 	}
+}
+
+func getHost(req *http.Request) string {
+	if !req.URL.IsAbs() {
+		host := req.Host
+		if i := strings.Index(host, ":"); i != -1 {
+			host = host[:i]
+		}
+		return host
+	}
+	return req.URL.Host
 }
 
 // parseAccessToken is used to read token from Authorization Header or Cookie.
