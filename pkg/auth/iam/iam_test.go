@@ -16,6 +16,7 @@ package iam
 
 import (
 	"net/http"
+	"net/url"
 	"testing"
 
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/constant"
@@ -158,6 +159,47 @@ func TestValidateRefererHeaderWithSubdomain(t *testing.T) {
 			actual := testcase.filter.validateRefererHeader(correctRequest, userTokenClaims)
 
 			assert.Equal(t, testcase.allowed, actual)
+		})
+	}
+}
+
+// nolint:paralleltest
+func TestGetHost(t *testing.T) {
+	testcases := []struct {
+		name        string
+		expected    string
+		requestHost string
+		URLHost     string
+		scheme      string
+	}{
+		{
+			name:        "not_absolute_url",
+			requestHost: "host.example.com",
+			URLHost:     "url.example.com",
+			expected:    "host.example.com",
+		},
+		{
+			name:        "not_absolute_url_with_port",
+			requestHost: "host.example.com:80",
+			URLHost:     "url.example.com",
+			expected:    "host.example.com",
+		},
+		{
+			name:        "absolute_url_without_port",
+			requestHost: "host.example.com",
+			URLHost:     "url.example.com",
+			scheme:      "http",
+			expected:    "url.example.com",
+		},
+	}
+
+	for _, testcase := range testcases {
+		t.Run(testcase.name, func(t *testing.T) {
+			req := &http.Request{
+				Host: testcase.requestHost,
+				URL:  &url.URL{Host: testcase.URLHost, Scheme: testcase.scheme},
+			}
+			assert.Equal(t, testcase.expected, getHost(req))
 		})
 	}
 }
