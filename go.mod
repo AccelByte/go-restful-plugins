@@ -6,7 +6,6 @@ require (
 	github.com/AccelByte/go-jose v2.1.4+incompatible
 	github.com/AccelByte/go-restful-plugins/v3 v3.2.2 // indirect
 	github.com/AccelByte/iam-go-sdk v1.7.0
-	github.com/AccelByte/legal-go-sdk v0.0.0-20210405152112-4c61182fa45b
 	github.com/AccelByte/public-source-ip v1.0.1
 	github.com/DataDog/datadog-go v4.3.0+incompatible // indirect
 	github.com/HdrHistogram/hdrhistogram-go v1.1.0 // indirect
