@@ -352,6 +352,7 @@ func parseAccessToken(request *restful.Request) (string, string, error) {
 }
 
 // validateRefererHeader is used validate the referer header against client's redirectURIs.
+// we're not using Origin header since it will null for GET request.
 func (filter *Filter) validateRefererHeader(request *restful.Request, claims *iam.JWTClaims) bool {
 	clientInfo, err := filter.iamClient.GetClientInformation(claims.Namespace, claims.ClientID)
 	if err != nil {
@@ -362,25 +363,32 @@ func (filter *Filter) validateRefererHeader(request *restful.Request, claims *ia
 		return true
 	}
 
-	refererHeader := request.HeaderParameter(constant.Referer)
-	clientRedirectURIs := strings.Split(clientInfo.RedirectURI, ",")
-	for _, redirectURI := range clientRedirectURIs {
-		if !filter.options.StrictRefererHeaderValidation {
-			redirectURI = util.GetDomain(redirectURI)
-		}
-		if filter.options.AllowSubdomainMatchRefererHeaderValidation {
-			if validateRefererWithSubdomain(refererHeader, redirectURI) {
-				return true
-			}
-		} else {
-			if strings.HasPrefix(refererHeader, redirectURI) {
-				return true
+	referer := request.HeaderParameter(constant.Referer)
+	if referer != "" {
+		refererDomain := util.GetDomain(referer)
+		clientRedirectURIs := strings.Split(clientInfo.RedirectURI, ",")
+		for _, redirectURI := range clientRedirectURIs {
+			if filter.options.AllowSubdomainMatchRefererHeaderValidation {
+				if validateRefererWithSubdomain(referer, redirectURI) {
+					return true
+				}
+			} else {
+				redirectURIDomain := util.GetDomain(redirectURI)
+				if filter.options.StrictRefererHeaderValidation {
+					if refererDomain == redirectURIDomain && strings.HasPrefix(referer, redirectURI) {
+						return true
+					}
+				} else {
+					if refererDomain == redirectURIDomain {
+						return true
+					}
+				}
 			}
 		}
 	}
 
 	logrus.Warnf("request has invalid referer header. referer header: %s. client redirect uri: %s",
-		refererHeader, clientInfo.RedirectURI)
+		referer, clientInfo.RedirectURI)
 	return false
 }
 
