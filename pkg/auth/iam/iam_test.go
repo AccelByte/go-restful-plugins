@@ -64,6 +64,16 @@ func TestValidateRefererHeader_RedirectUriIsDomain(t *testing.T) {
 			allowed:       false,
 		},
 		{
+			name:          "wrong referer 4th",
+			refererHeader: "https://example.com",
+			allowed:       false,
+		},
+		{
+			name:          "wrong referer 5th",
+			refererHeader: "https://www.example.com:8080",
+			allowed:       false,
+		},
+		{
 			name:          "referer with extra wrong domain",
 			refererHeader: "https://www.example.com.something.net",
 			allowed:       false,
@@ -119,6 +129,11 @@ func TestValidateRefererHeader_RedirectUriIsIP(t *testing.T) {
 		{
 			name:          "wrong referer",
 			refererHeader: "http://127.0.0.2",
+			allowed:       false,
+		},
+		{
+			name:          "wrong referer 2nd",
+			refererHeader: "127.0.0.1",
 			allowed:       false,
 		},
 		{
@@ -188,6 +203,11 @@ func TestValidateRefererHeader_RedirectUriContainsPort(t *testing.T) {
 		{
 			name:          "wrong referer 3rd",
 			refererHeader: "https://www.wrong.com",
+			allowed:       false,
+		},
+		{
+			name:          "wrong referer 4th",
+			refererHeader: "www.example.com:8080",
 			allowed:       false,
 		},
 		{
@@ -270,6 +290,18 @@ func TestValidateRefererHeader_ClientHaveMultipleRedirectURIs(t *testing.T) {
 			allowed:       false,
 		},
 		{
+			name:          "wrong referer 4th",
+			refererHeader: "www.example.com",
+			filter:        NewFilter(iamClientWithMultipleRedirectURI),
+			allowed:       false,
+		},
+		{
+			name:          "wrong referer 5th",
+			refererHeader: "https://www.example.com:8080",
+			filter:        NewFilter(iamClientWithMultipleRedirectURI),
+			allowed:       false,
+		},
+		{
 			name:          "referer with extra wrong domain",
 			refererHeader: "https://www.example.com.something.net",
 			filter:        NewFilter(iamClientWithMultipleRedirectURI),
@@ -342,6 +374,11 @@ func TestValidateRefererHeader_StrictRefererValidation(t *testing.T) {
 		{
 			name:          "wrong referer 3rd",
 			refererHeader: "https://www.wrong.com",
+			allowed:       false,
+		},
+		{
+			name:          "wrong referer 5th",
+			refererHeader: "https://www.example.com:8080/admin",
 			allowed:       false,
 		},
 		{
