@@ -369,7 +369,7 @@ func (filter *Filter) validateRefererHeader(request *restful.Request, claims *ia
 		clientRedirectURIs := strings.Split(clientInfo.RedirectURI, ",")
 		for _, redirectURI := range clientRedirectURIs {
 			if filter.options.AllowSubdomainMatchRefererHeaderValidation {
-				if validateRefererWithSubdomain(referer, redirectURI) {
+				if validateRefererWithoutSubdomain(referer, redirectURI) {
 					return true
 				}
 			} else {
@@ -392,7 +392,7 @@ func (filter *Filter) validateRefererHeader(request *restful.Request, claims *ia
 	return false
 }
 
-func validateRefererWithSubdomain(refererHeader string, clientRedirectURI string) bool {
+func validateRefererWithoutSubdomain(refererHeader string, clientRedirectURI string) bool {
 	refererURL, err := url.Parse(refererHeader)
 	if err != nil {
 		return false
@@ -407,7 +407,20 @@ func validateRefererWithSubdomain(refererHeader string, clientRedirectURI string
 		return false
 	}
 
-	if strings.HasSuffix(refererURL.Host, clientRedirectURL.Host) {
+	// remove the ".www"
+	clientRedirectHost := strings.Replace(clientRedirectURL.Host, "www.", "", 1)
+
+	if strings.HasSuffix(refererURL.Host, clientRedirectHost) {
+		// check the character after the redirectUri string in referer string,
+		// if contains [a-zA-Z] character, then it's not a valid domain
+		// e.g.
+		// redirectUri host: accelbyte.io
+		// referer host: mygame.evilaccelbyte.io
+		if len(refererURL.Host) > len(clientRedirectHost) {
+			if refererURL.Host[len(refererURL.Host)-len(clientRedirectHost)-1] != '.' {
+				return false
+			}
+		}
 		return true
 	}
 
