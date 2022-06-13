@@ -91,6 +91,17 @@ func TestIsOriginAllowed(t *testing.T) {
 	assert.True(t, corsWithWildcardAllowedDomain.isOriginAllowed("https://www.example.io.something"))
 	assert.True(t, corsWithWildcardAllowedDomain.isOriginAllowed("https://www.example.io.something.io"))
 
+	// TEST 5: Allowed domains with regex
+	corsWithRegex := CrossOriginResourceSharing{
+		AllowedDomains: []string{"re:https://([a-z0-9]+[.])*example.io$", "https://www.example.com"},
+	}
+	assert.True(t, corsWithRegex.isOriginAllowed("https://www.example.io"))
+	assert.True(t, corsWithRegex.isOriginAllowed("https://subdomain.example.io"))
+	assert.True(t, corsWithRegex.isOriginAllowed("https://www.example.com"))
+	assert.False(t, corsWithRegex.isOriginAllowed("https://subdomain.example.com"))
+	assert.False(t, corsWithRegex.isOriginAllowed("https://www.example.net"))
+	assert.False(t, corsWithRegex.isOriginAllowed("https://subdomain.example.io.something"))
+	assert.False(t, corsWithRegex.isOriginAllowed("https://www.example.io.something.io"))
 }
 
 func TestIsValidAccessControlRequestMethod(t *testing.T) {
