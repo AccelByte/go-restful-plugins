@@ -15,6 +15,8 @@
 package cors
 
 import (
+	"errors"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -38,6 +40,10 @@ type CrossOriginResourceSharing struct {
 	CookiesAllowed bool
 	Container      *restful.Container
 }
+
+const (
+	AllowedDomainsRegexPrefix = "re:"
+)
 
 // Filter is a filter function that implements the CORS flow
 func (c CrossOriginResourceSharing) Filter(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
@@ -135,6 +141,15 @@ func (c CrossOriginResourceSharing) isOriginAllowed(origin string) bool {
 		if domain == origin || domain == "*" {
 			return true
 		}
+		if strings.HasPrefix(domain, AllowedDomainsRegexPrefix) {
+			pattern, err := getPattern(domain)
+			if err != nil {
+				return false
+			}
+			if pattern.MatchString(origin) {
+				return true
+			}
+		}
 	}
 
 	return false
@@ -158,4 +173,12 @@ func (c CrossOriginResourceSharing) isValidAccessControlRequestHeader(header str
 		}
 	}
 	return false
+}
+
+func getPattern(str string) (*regexp.Regexp, error) {
+	split := strings.Split(str, AllowedDomainsRegexPrefix)
+	if len(split) < 2 {
+		return nil, errors.New("pattern not found")
+	}
+	return regexp.Compile(split[1])
 }
