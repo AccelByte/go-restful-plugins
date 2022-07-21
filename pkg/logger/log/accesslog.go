@@ -164,7 +164,13 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 		}
 	}
 
-	operation := req.SelectedRoute().Operation()
+	// extract operation id
+	operation := ""
+	selectedRoute := req.SelectedRoute()
+	if selectedRoute != nil {
+		operation = selectedRoute.Operation()
+	}
+
 	traceID := req.Attribute(trace.TraceIDKey)
 	duration := time.Since(start)
 
