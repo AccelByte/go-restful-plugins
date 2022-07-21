@@ -172,6 +172,9 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 	}
 
 	traceID := req.Attribute(trace.TraceIDKey)
+	if traceID == nil {
+		traceID = ""
+	}
 	duration := time.Since(start)
 
 	fullAccessLogLogger.Infof(fullAccessLogFormat,
