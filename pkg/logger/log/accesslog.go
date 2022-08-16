@@ -130,15 +130,32 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 	chain.ProcessFilter(req, resp)
 
 	var tokenNamespace, tokenUserID, tokenClientID string
+	if val := req.Attribute(NamespaceAttribute); val != nil {
+		tokenNamespace = val.(string)
+	}
+	if val := req.Attribute(UserIDAttribute); val != nil {
+		tokenUserID = val.(string)
+	}
+	if val := req.Attribute(ClientIDAttribute); val != nil {
+		tokenClientID = val.(string)
+	}
 	if jwtClaims := iam.RetrieveJWTClaims(req); jwtClaims != nil {
-		tokenNamespace = jwtClaims.Namespace
-		tokenUserID = jwtClaims.Subject
-		tokenClientID = jwtClaims.ClientID
+		// if tokenNamespace, tokenUserID or tokenClientID is empty,
+		// fallback get from jwt claims
+		if tokenNamespace == "" {
+			tokenNamespace = jwtClaims.Namespace
+		}
+		if tokenUserID == "" {
+			tokenUserID = jwtClaims.Subject
+		}
+		if tokenClientID == "" {
+			tokenClientID = jwtClaims.ClientID
+		}
 	}
 
 	requestUri := req.Request.URL.RequestURI()
 	// mask sensitive field(s)
-	if maskedQueryParams := req.Attribute(MaskedQueryParams); maskedQueryParams != nil {
+	if maskedQueryParams := req.Attribute(MaskedQueryParamsAttribute); maskedQueryParams != nil {
 		requestUri = MaskQueryParams(requestUri, maskedQueryParams.(string))
 	}
 
@@ -150,7 +167,7 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 			// mask sensitive field(s)
 			// notes: we masked the request body after calling chain.ProcessFilter first,
 			//        since the MaskedRequestFields attribute is initialized in the inner filter.
-			if maskedRequestFields := req.Attribute(MaskedRequestFields); maskedRequestFields != nil && requestBody != "" {
+			if maskedRequestFields := req.Attribute(MaskedRequestFieldsAttribute); maskedRequestFields != nil && requestBody != "" {
 				requestBody = MaskFields(requestContentType, requestBody, maskedRequestFields.(string))
 			}
 		}
@@ -158,7 +175,7 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 		if FullAccessLogResponseBodyEnabled {
 			responseBody = getResponseBody(respWriterInterceptor, responseContentType)
 			// mask sensitive field(s)
-			if maskedResponseFields := req.Attribute(MaskedResponseFields); maskedResponseFields != nil && responseBody != "" {
+			if maskedResponseFields := req.Attribute(MaskedResponseFieldsAttribute); maskedResponseFields != nil && responseBody != "" {
 				responseBody = MaskFields(responseContentType, responseBody, maskedResponseFields.(string))
 			}
 		}

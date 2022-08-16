@@ -69,3 +69,24 @@ ws.Route(ws.GET("/user/{id}").
     To(func(request *restful.Request, response *restful.Response) {
 }))
 ```
+
+### Manually specify log's field value
+
+We could manually set specific field value via request attribute.
+Please refer to the table below for attribute name of each field.
+
+| Field     | Default Value             | Attribute Name           |
+|-----------|---------------------------|--------------------------|
+| namespace | Extracted from JWT claims | `log.NamespaceAttribute` |
+| user_id   | Extracted from JWT claims | `log.UserIDAttribute`    |
+| client_id | Extracted from JWT claims | `log.ClientIDAttribute`  |
+
+Example: 
+
+```go
+// ... your service logic
+request.SetAttribute(log.NamespaceAttribute, "myNamespace")
+request.SetAttribute(log.UserIDAttribute, "myUserId")
+request.SetAttribute(log.ClientIDAttribute, "myClientId")
+// ... your service logic
+```
