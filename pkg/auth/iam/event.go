@@ -36,6 +36,7 @@ const (
 	ForbiddenAccess             = 20003
 	TooManyRequests             = 20007
 	UserNotFound                = 20008
+	TokenIsExpired              = 20011
 	InsufficientPermissions     = 20013
 	InvalidAudience             = 20014
 	InsufficientScope           = 20015
@@ -62,4 +63,5 @@ var ErrorCodeMapping = map[int]string{
 	TokenIsNotUserToken:         "token is not user token",
 	InvalidRefererHeader:        "invalid referer header",
 	SubdomainMismatch:           "subdomain mismatch",
+	TokenIsExpired:              "token is expired",
 }

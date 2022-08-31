@@ -95,11 +95,17 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 		claims, err := filter.iamClient.ValidateAndParseClaims(token)
 		if err != nil {
 			logrus.Warn("unauthorized access: ", err)
+			if err.Error() == ErrorCodeMapping[TokenIsExpired] {
+				logIfErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
+					ErrorCode:    TokenIsExpired,
+					ErrorMessage: ErrorCodeMapping[TokenIsExpired],
+				}, restful.MIME_JSON))
+				return
+			}
 			logIfErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
 				ErrorCode:    UnauthorizedAccess,
 				ErrorMessage: ErrorCodeMapping[UnauthorizedAccess],
 			}, restful.MIME_JSON))
-
 			return
 		}
 
