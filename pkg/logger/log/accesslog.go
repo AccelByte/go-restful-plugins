@@ -237,7 +237,11 @@ func getRequestBody(req *restful.Request, contentType string) string {
 		if strings.Contains(contentType, "application/json") {
 			return util.MinifyJSON(bodyBytes)
 		}
-		return string(bodyBytes)
+
+		bodyString := string(bodyBytes)
+		bodyString = strings.ReplaceAll(bodyString, "\n", "\\n")
+		bodyString = strings.ReplaceAll(bodyString, "\r", "\\r")
+		return bodyString
 	}
 	return ""
 }
@@ -255,7 +259,11 @@ func getResponseBody(respWriter *ResponseWriterInterceptor, contentType string) 
 	if strings.Contains(contentType, "application/json") {
 		return util.MinifyJSON(respWriter.data)
 	}
-	return string(respWriter.data)
+
+	bodyString := string(respWriter.data)
+	bodyString = strings.ReplaceAll(bodyString, "\n", "\\n")
+	bodyString = strings.ReplaceAll(bodyString, "\r", "\\r")
+	return bodyString
 }
 
 func isSupportedContentType(contentType string) bool {
