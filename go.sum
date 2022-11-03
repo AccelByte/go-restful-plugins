@@ -8,8 +8,8 @@ github.com/AccelByte/go-restful-plugins/v3 v3.2.1/go.mod h1:XkhxnbfR/0z5lj2xI2SV
 github.com/AccelByte/go-restful-plugins/v3 v3.2.2 h1:ToyjfA3bir1IWfEXc4Uqgj9tOlEyd9DyRWqfhLshfsc=
 github.com/AccelByte/go-restful-plugins/v3 v3.2.2/go.mod h1:XkhxnbfR/0z5lj2xI2SVbSuF5PhCi39xVYmVODwFf7k=
 github.com/AccelByte/iam-go-sdk v1.1.2/go.mod h1:M1Eplqpph/Msxm7XKgZRI+cYBCCChFdgPiVdKYupwq8=
-github.com/AccelByte/iam-go-sdk v1.8.0 h1:jfhgAR9hY7ubNGo+SJGhCLvchx3rn+cShszNxM2f3qg=
-github.com/AccelByte/iam-go-sdk v1.8.0/go.mod h1:NA4n8yx/WU+BqdserLE/xaECC+2BSm6Buxli1PbYarg=
+github.com/AccelByte/iam-go-sdk v1.8.1 h1:08ZKbemfAsEzdoxUEsXQFYkwam08OUiLL00EUcJ4l18=
+github.com/AccelByte/iam-go-sdk v1.8.1/go.mod h1:NA4n8yx/WU+BqdserLE/xaECC+2BSm6Buxli1PbYarg=
 github.com/AccelByte/public-source-ip v1.0.0/go.mod h1:L7zIgt3UaXkGH7NoKFCbxPdWZOVwn+d6uW/5yYRXtnQ=
 github.com/AccelByte/public-source-ip v1.0.1 h1:6/VAkksqXFmuonsvsZfIkJfsoBVy3bSy9LLHwiCqlxc=
 github.com/AccelByte/public-source-ip v1.0.1/go.mod h1:L7zIgt3UaXkGH7NoKFCbxPdWZOVwn+d6uW/5yYRXtnQ=

@@ -19,6 +19,8 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"os"
+	"strconv"
 	"strings"
 
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/auth/util"
@@ -60,7 +62,17 @@ type ErrorResponse struct {
 
 // NewFilter creates new Filter instance
 func NewFilter(client iam.Client) *Filter {
-	return &Filter{iamClient: client, options: &FilterInitializationOptions{}}
+	options := &FilterInitializationOptions{}
+	if s, exists := os.LookupEnv(constant.EnvSubdomainValidationEnabled); exists {
+		subdomainValidationEnabled, err := strconv.ParseBool(s)
+		if err != nil {
+			logrus.Errorf("Parse %s env error: %v", constant.EnvSubdomainValidationEnabled, err)
+		}
+		if subdomainValidationEnabled == true {
+			options.AllowSubdomainMatchRefererHeaderValidation = true
+		}
+	}
+	return &Filter{iamClient: client, options: options}
 }
 
 // NewFilterWithOptions creates new Filter instance with Options
@@ -76,8 +88,10 @@ func NewFilterWithOptions(client iam.Client, options *FilterInitializationOption
 // This filter is expandable through FilterOption parameter
 // Example:
 // iam.Auth(
-// 		WithValidUser(),
-//		WithPermission("ADMIN"),
+//
+//	WithValidUser(),
+//	WithPermission("ADMIN"),
+//
 // )
 func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 	return func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
@@ -157,8 +171,10 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 // This filter is expandable through FilterOption parameter
 // Example:
 // iam.PublicAuth(
-// 		WithValidUser(),
-//		WithPermission("ADMIN"),
+//
+//	WithValidUser(),
+//	WithPermission("ADMIN"),
+//
 // )
 func (filter *Filter) PublicAuth(opts ...FilterOption) restful.FilterFunction {
 	return func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
