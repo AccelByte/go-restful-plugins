@@ -17,6 +17,7 @@ package iam
 import (
 	"net/http"
 	"net/url"
+	"os"
 	"testing"
 
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/constant"
@@ -816,4 +817,370 @@ func TestGetHost(t *testing.T) {
 			assert.Equal(t, testcase.expected, getHost(req))
 		})
 	}
+}
+
+func TestValidateRefererHeaderWithSubdomainFilteringFlag_SimpleRedirectURI(t *testing.T) {
+	os.Setenv(constant.EnvSubdomainValidationEnabled, "true")
+
+	iamClient := &iam.MockClient{
+		Healthy:     true,
+		RedirectURI: "https://example.com",
+	}
+	filter := NewFilter(iamClient)
+
+	testcases := []struct {
+		name          string
+		refererHeader string
+		allowed       bool
+	}{
+		{
+			name:          "normal referer",
+			refererHeader: "https://example.com",
+			allowed:       true,
+		},
+		{
+			name:          "normal referer",
+			refererHeader: "https://www.example.com",
+			allowed:       true,
+		},
+		{
+			name:          "normal referer",
+			refererHeader: "https://www.example.com/admin/path",
+			allowed:       true,
+		},
+		{
+			name:          "normal referer",
+			refererHeader: "https://subdomain.example.com",
+			allowed:       true,
+		},
+		{
+			name:          "normal referer",
+			refererHeader: "https://subdomain.example.com/admin/path",
+			allowed:       true,
+		},
+		{
+			name:          "wrong referer",
+			refererHeader: "https://example.net",
+			allowed:       false,
+		},
+		{
+			name:          "wrong referer",
+			refererHeader: "http://example.com",
+			allowed:       false,
+		},
+		{
+			name:          "wrong referer",
+			refererHeader: "https://www.wrong.com",
+			allowed:       false,
+		},
+		{
+			name:          "wrong referer",
+			refererHeader: "https://subdomain.wrong.com",
+			allowed:       false,
+		},
+		{
+			name:          "wrong referer",
+			refererHeader: "https://subdomain.example.com.something.com",
+			allowed:       false,
+		},
+		{
+			name:          "wrong referer",
+			refererHeader: "https://example.com.something.com",
+			allowed:       false,
+		},
+		{
+			name:          "wrong referer",
+			refererHeader: "https://examplewww.com",
+			allowed:       false,
+		},
+		{
+			name:          "wrong referer",
+			refererHeader: "https://www.examplewww.com",
+			allowed:       false,
+		},
+	}
+
+	for _, testcase := range testcases {
+		t.Run(testcase.name, func(t *testing.T) {
+			userTokenClaims, _ := filter.iamClient.ValidateAndParseClaims("dummyToken")
+
+			correctRequest := &restful.Request{
+				Request: &http.Request{
+					Header: map[string][]string{
+						constant.Referer: {testcase.refererHeader},
+					},
+				},
+			}
+
+			actual := filter.validateRefererHeader(correctRequest, userTokenClaims)
+
+			assert.Equal(t, testcase.allowed, actual)
+		})
+	}
+
+	os.Setenv(constant.EnvSubdomainValidationEnabled, "")
+}
+
+// nolint:paralleltest
+func TestValidateRefererHeaderWithSubdomainFilteringFlag_SimpleRedirectURIContainsWWW(t *testing.T) {
+	os.Setenv(constant.EnvSubdomainValidationEnabled, "true")
+
+	iamClient := &iam.MockClient{
+		Healthy:     true,
+		RedirectURI: "https://www.example.com",
+	}
+	filter := NewFilter(iamClient)
+
+	testcases := []struct {
+		name          string
+		refererHeader string
+		allowed       bool
+	}{
+		{
+			name:          "normal referer",
+			refererHeader: "https://example.com",
+			allowed:       true,
+		},
+		{
+			name:          "normal referer",
+			refererHeader: "https://www.example.com",
+			allowed:       true,
+		},
+		{
+			name:          "normal referer",
+			refererHeader: "https://www.example.com/admin/path",
+			allowed:       true,
+		},
+		{
+			name:          "normal referer",
+			refererHeader: "https://subdomain.example.com",
+			allowed:       true,
+		},
+		{
+			name:          "normal referer",
+			refererHeader: "https://subdomain.example.com/admin/path",
+			allowed:       true,
+		},
+		{
+			name:          "wrong referer",
+			refererHeader: "https://example.net",
+			allowed:       false,
+		},
+		{
+			name:          "wrong referer",
+			refererHeader: "http://example.com",
+			allowed:       false,
+		},
+		{
+			name:          "wrong referer",
+			refererHeader: "https://www.wrong.com",
+			allowed:       false,
+		},
+		{
+			name:          "wrong referer",
+			refererHeader: "https://subdomain.wrong.com",
+			allowed:       false,
+		},
+		{
+			name:          "wrong referer",
+			refererHeader: "https://subdomain.example.com.something.com",
+			allowed:       false,
+		},
+		{
+			name:          "wrong referer",
+			refererHeader: "https://example.com.something.com",
+			allowed:       false,
+		},
+		{
+			name:          "wrong referer",
+			refererHeader: "https://examplewww.com",
+			allowed:       false,
+		},
+		{
+			name:          "wrong referer",
+			refererHeader: "https://www.examplewww.com",
+			allowed:       false,
+		},
+	}
+
+	for _, testcase := range testcases {
+		t.Run(testcase.name, func(t *testing.T) {
+			userTokenClaims, _ := filter.iamClient.ValidateAndParseClaims("dummyToken")
+
+			correctRequest := &restful.Request{
+				Request: &http.Request{
+					Header: map[string][]string{
+						constant.Referer: {testcase.refererHeader},
+					},
+				},
+			}
+
+			actual := filter.validateRefererHeader(correctRequest, userTokenClaims)
+
+			assert.Equal(t, testcase.allowed, actual)
+		})
+	}
+
+	os.Setenv(constant.EnvSubdomainValidationEnabled, "")
+}
+
+// nolint:paralleltest
+func TestValidateRefererHeaderWithSubdomainFilteringFlag_RedirectURIContainsPort(t *testing.T) {
+	os.Setenv(constant.EnvSubdomainValidationEnabled, "true")
+
+	iamClient := &iam.MockClient{
+		Healthy:     true,
+		RedirectURI: "https://www.example.com:8080",
+	}
+	filter := NewFilter(iamClient)
+
+	testcases := []struct {
+		name          string
+		refererHeader string
+		allowed       bool
+	}{
+		{
+			name:          "normal referer",
+			refererHeader: "https://example.com:8080",
+			allowed:       true,
+		},
+		{
+			name:          "normal referer",
+			refererHeader: "https://www.example.com:8080",
+			allowed:       true,
+		},
+		{
+			name:          "normal referer",
+			refererHeader: "https://www.example.com:8080/admin/path",
+			allowed:       true,
+		},
+		{
+			name:          "normal referer",
+			refererHeader: "https://subdomain.example.com:8080",
+			allowed:       true,
+		},
+		{
+			name:          "normal referer",
+			refererHeader: "https://subdomain.example.com:8080/admin/path",
+			allowed:       true,
+		},
+		{
+			name:          "wrong referer",
+			refererHeader: "https://example.com",
+			allowed:       false,
+		},
+		{
+			name:          "wrong referer",
+			refererHeader: "https://www.example.com:8081",
+			allowed:       false,
+		},
+		{
+			name:          "wrong referer",
+			refererHeader: "https://subdomain.example.com:8081",
+			allowed:       false,
+		},
+		{
+			name:          "wrong referer",
+			refererHeader: "https://www.example.com.something.com:8080",
+			allowed:       false,
+		},
+	}
+
+	for _, testcase := range testcases {
+		t.Run(testcase.name, func(t *testing.T) {
+			userTokenClaims, _ := filter.iamClient.ValidateAndParseClaims("dummyToken")
+
+			correctRequest := &restful.Request{
+				Request: &http.Request{
+					Header: map[string][]string{
+						constant.Referer: {testcase.refererHeader},
+					},
+				},
+			}
+
+			actual := filter.validateRefererHeader(correctRequest, userTokenClaims)
+
+			assert.Equal(t, testcase.allowed, actual)
+		})
+	}
+
+	os.Setenv(constant.EnvSubdomainValidationEnabled, "")
+}
+
+// nolint:paralleltest
+func TestValidateRefererHeaderWithSubdomainFilteringFlag_RedirectURIIsIP(t *testing.T) {
+	os.Setenv(constant.EnvSubdomainValidationEnabled, "true")
+
+	iamClient := &iam.MockClient{
+		Healthy:     true,
+		RedirectURI: "http://127.0.0.1",
+	}
+	filter := NewFilter(iamClient)
+
+	testcases := []struct {
+		name          string
+		refererHeader string
+		allowed       bool
+	}{
+		{
+			name:          "normal referer",
+			refererHeader: "http://127.0.0.1",
+			allowed:       true,
+		},
+		{
+			name:          "normal referer",
+			refererHeader: "http://127.0.0.1/admin/path",
+			allowed:       true,
+		},
+		{
+			name:          "normal referer",
+			refererHeader: "http://subdomain.127.0.0.1",
+			allowed:       true,
+		},
+		{
+			name:          "normal referer",
+			refererHeader: "http://subdomain.127.0.0.1/admin/path",
+			allowed:       true,
+		},
+		{
+			name:          "wrong referer",
+			refererHeader: "https://example.net",
+			allowed:       false,
+		},
+		{
+			name:          "wrong referer",
+			refererHeader: "http://127.0.0.2",
+			allowed:       false,
+		},
+		{
+			name:          "wrong referer",
+			refererHeader: "http://127.0.0.1.2",
+			allowed:       false,
+		},
+		{
+			name:          "wrong referer",
+			refererHeader: "http://subdomain.127.0.0.2",
+			allowed:       false,
+		},
+	}
+
+	for _, testcase := range testcases {
+		t.Run(testcase.name, func(t *testing.T) {
+			userTokenClaims, _ := filter.iamClient.ValidateAndParseClaims("dummyToken")
+
+			correctRequest := &restful.Request{
+				Request: &http.Request{
+					Header: map[string][]string{
+						constant.Referer: {testcase.refererHeader},
+					},
+				},
+			}
+
+			actual := filter.validateRefererHeader(correctRequest, userTokenClaims)
+
+			assert.Equal(t, testcase.allowed, actual)
+		})
+	}
+
+	os.Setenv(constant.EnvSubdomainValidationEnabled, "")
 }
