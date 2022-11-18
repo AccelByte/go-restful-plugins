@@ -17,6 +17,7 @@ package iam
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -38,6 +39,8 @@ const (
 	tokenFromCookie      = "cookie"
 	tokenFromHeader      = "header"
 )
+
+var DevStackTraceable bool
 
 // FilterOption extends the basic auth filter functionality
 type FilterOption func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error
@@ -64,6 +67,8 @@ type ErrorResponse struct {
 
 // NewFilter creates new Filter instance
 func NewFilter(client iam.Client) *Filter {
+	SetDevStackTracer()
+
 	options := &FilterInitializationOptions{}
 	return &Filter{iamClient: client, options: options}
 }
@@ -77,6 +82,8 @@ func NewFilter(client iam.Client) *Filter {
 //		SubdomainValidationExcludedNamespaces: ["foundations"]
 //	})
 func NewFilterWithOptions(client iam.Client, options *FilterInitializationOptions) *Filter {
+	SetDevStackTracer()
+
 	if options == nil {
 		return &Filter{iamClient: client, options: &FilterInitializationOptions{}}
 	}
@@ -282,9 +289,15 @@ func WithPermission(permission *iam.Permission) FilterOption {
 				"unable to validate permission: "+err.Error())
 		}
 
+		insufficientPermissionMessage := ErrorCodeMapping[InsufficientPermissions]
+		if DevStackTraceable {
+			action := ActionConverter(permission.Action)
+			insufficientPermissionMessage = fmt.Sprintf("%s. Required permission: %s [%s]", insufficientPermissionMessage,
+				permission.Resource, action)
+		}
 		if !valid {
 			return respondError(http.StatusForbidden, InsufficientPermissions,
-				"access forbidden: "+ErrorCodeMapping[InsufficientPermissions])
+				"access forbidden: "+insufficientPermissionMessage)
 		}
 
 		return nil
@@ -300,9 +313,14 @@ func WithRole(role string) FilterOption {
 				"unable to validate role: "+err.Error())
 		}
 
+		insufficientRolePermissionMessage := ErrorCodeMapping[InsufficientPermissions]
+		if DevStackTraceable {
+			insufficientRolePermissionMessage = fmt.Sprintf("%s. Required role: %s", insufficientRolePermissionMessage,
+				role)
+		}
 		if !valid {
 			return respondError(http.StatusForbidden, EIDWithRoleInsufficientPermission,
-				"access forbidden: insufficient permission")
+				"access forbidden: "+insufficientRolePermissionMessage)
 		}
 
 		return nil
@@ -344,9 +362,14 @@ func WithValidAudience() FilterOption {
 func WithValidScope(scope string) FilterOption {
 	return func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error {
 		err := iamClient.ValidateScope(claims, scope)
+		insufficientScopeMessage := ErrorCodeMapping[InsufficientScope]
+		if DevStackTraceable {
+			insufficientScopeMessage = fmt.Sprintf("%s. Required scope: %s", insufficientScopeMessage,
+				scope)
+		}
 		if err != nil {
 			return respondError(http.StatusForbidden, InsufficientScope,
-				"access forbidden: "+ErrorCodeMapping[InsufficientScope])
+				"access forbidden: "+insufficientScopeMessage)
 		}
 
 		return nil
@@ -504,4 +527,45 @@ func respondError(httpStatus, errorCode int, errorMessage string) restful.Servic
 		Code:    httpStatus,
 		Message: string(messageByte),
 	}
+}
+
+// SetDevStackTracer used for activate verbose error message in non-prod environment
+func SetDevStackTracer() {
+	DevStackTraceable = true
+	realmName, realmNameExists := os.LookupEnv("REALM_NAME")
+	if !realmNameExists {
+		DevStackTraceable = false
+		return
+	}
+
+	realmLive, realmLiveExists := os.LookupEnv("REALM_LIVE")
+	if !realmLiveExists {
+		realmLive = constant.DefaultRealmLive
+	}
+
+	realmLives := strings.Split(realmLive, ",")
+	for _, rl := range realmLives {
+		if realmName == rl {
+			DevStackTraceable = false
+			return
+		}
+	}
+}
+
+// ActionConverter convert IAM action bit to human-readable
+func ActionConverter(action int) string {
+	var ActionStr string
+	switch action {
+	case iam.ActionRead:
+		ActionStr = constant.PermissionRead
+	case iam.ActionCreate:
+		ActionStr = constant.PermissionCreate
+	case iam.ActionUpdate:
+		ActionStr = constant.PermissionUpdate
+	case iam.ActionDelete:
+		ActionStr = constant.PermissionDelete
+	default:
+		return ""
+	}
+	return ActionStr
 }
