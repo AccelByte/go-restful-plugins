@@ -44,8 +44,10 @@ type FilterOption func(req *restful.Request, iamClient iam.Client, claims *iam.J
 
 // FilterInitializationOptions hold options for Filter during initialization
 type FilterInitializationOptions struct {
-	StrictRefererHeaderValidation              bool // Enable full path check of redirect uri in referer header validation
-	AllowSubdomainMatchRefererHeaderValidation bool // Allow checking with subdomain
+	StrictRefererHeaderValidation              bool     // Enable full path check of redirect uri in referer header validation
+	AllowSubdomainMatchRefererHeaderValidation bool     // Allow checking with subdomain
+	SubdomainValidationEnabled                 bool     // Enable subdomain validation. When it is true, it will match the subdomain in the request url against claims namespace.
+	SubdomainValidationExcludedNamespaces      []string // List of namespaces to be excluded for subdomain validation. When it is not emtpy and the SUBDOMAIN_VALIDATION_ENABLED is true, it will ignore specified namespaces when doing the subdomain validation.
 }
 
 // Filter handles auth using filter
@@ -63,24 +65,45 @@ type ErrorResponse struct {
 // NewFilter creates new Filter instance
 func NewFilter(client iam.Client) *Filter {
 	options := &FilterInitializationOptions{}
-	if s, exists := os.LookupEnv(constant.EnvSubdomainValidationEnabled); exists {
-		subdomainValidationEnabled, err := strconv.ParseBool(s)
-		if err != nil {
-			logrus.Errorf("Parse %s env error: %v", constant.EnvSubdomainValidationEnabled, err)
-		}
-		if subdomainValidationEnabled == true {
-			options.AllowSubdomainMatchRefererHeaderValidation = true
-		}
-	}
 	return &Filter{iamClient: client, options: options}
 }
 
 // NewFilterWithOptions creates new Filter instance with Options
+// Example:
+//
+//	iam.NewFilterWithOptions(iamClient, &FilterInitializationOptions{
+//		AllowSubdomainMatchRefererHeaderValidation: true
+//		SubdomainValidationEnabled: true,
+//		SubdomainValidationExcludedNamespaces: ["foundations"]
+//	})
 func NewFilterWithOptions(client iam.Client, options *FilterInitializationOptions) *Filter {
 	if options == nil {
 		return &Filter{iamClient: client, options: &FilterInitializationOptions{}}
 	}
 	return &Filter{iamClient: client, options: options}
+}
+
+func FilterInitializationOptionsFromEnv() *FilterInitializationOptions {
+	options := &FilterInitializationOptions{}
+
+	if s, exists := os.LookupEnv("SUBDOMAIN_VALIDATION_ENABLED"); exists {
+		value, err := strconv.ParseBool(s)
+		if err != nil {
+			logrus.Errorf("Parse SUBDOMAIN_VALIDATION_ENABLED env error: %v", err)
+		}
+		if value == true {
+			options.AllowSubdomainMatchRefererHeaderValidation = true
+			options.SubdomainValidationEnabled = true
+		}
+	}
+
+	if s, exists := os.LookupEnv("SUBDOMAIN_VALIDATION_EXCLUDED_NAMESPACES"); exists {
+		s = strings.TrimSpace(s)
+		s = strings.Trim(s, ",")
+		options.SubdomainValidationExcludedNamespaces = strings.Split(s, ",")
+	}
+
+	return options
 }
 
 // Auth returns a filter that filters request with valid access token in auth header or cookie
@@ -131,6 +154,17 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 				logIfErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
 					ErrorCode:    InvalidRefererHeader,
 					ErrorMessage: ErrorCodeMapping[InvalidRefererHeader],
+				}, restful.MIME_JSON))
+
+				return
+			}
+		}
+
+		if filter.options.SubdomainValidationEnabled {
+			if valid := validateSubdomainAgainstNamespace(getHost(req.Request), claims.Namespace, filter.options.SubdomainValidationExcludedNamespaces); !valid {
+				logIfErr(resp.WriteHeaderAndJson(http.StatusNotFound, ErrorResponse{
+					ErrorCode:    SubdomainMismatch,
+					ErrorMessage: "data not found: " + ErrorCodeMapping[SubdomainMismatch],
 				}, restful.MIME_JSON))
 
 				return
@@ -319,28 +353,22 @@ func WithValidScope(scope string) FilterOption {
 	}
 }
 
-// WithMatchedSubdomain filters request to a subdomain to match it with namespace in user's token
-func WithMatchedSubdomain(excludedNamespaces []string) FilterOption {
-	return func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error {
-		part := strings.Split(getHost(req.Request), ".")
-		if len(part) < 3 {
-			// url with subdomain should have at least 3 part, e.g. foo.example.com, otherwise we should not check it
-			return nil
-		}
-
-		for _, excludedNS := range excludedNamespaces {
-			if strings.ToLower(excludedNS) == strings.ToLower(claims.Namespace) {
-				return nil
-			}
-		}
-
-		if strings.ToLower(claims.Namespace) == strings.ToLower(part[0]) {
-			return nil
-		}
-
-		return respondError(http.StatusNotFound, SubdomainMismatch,
-			"data not found: "+ErrorCodeMapping[SubdomainMismatch])
+func validateSubdomainAgainstNamespace(host string, namespace string, excludedNamespaces []string) bool {
+	part := strings.Split(host, ".")
+	if len(part) < 3 {
+		// url with subdomain should have at least 3 part, e.g. foo.example.com, otherwise we should not check it
+		return true
 	}
+	subdomain := part[0]
+	for _, excludedNS := range excludedNamespaces {
+		if strings.ToLower(excludedNS) == strings.ToLower(namespace) {
+			return true
+		}
+	}
+	if strings.ToLower(namespace) == strings.ToLower(subdomain) {
+		return true
+	}
+	return false
 }
 
 func getHost(req *http.Request) string {
