@@ -15,8 +15,7 @@
 package constant
 
 const (
-	ContentType                   = "Content-Type"
-	Referer                       = "Referer"
-	UserAgent                     = "User-Agent"
-	EnvSubdomainValidationEnabled = "SUBDOMAIN_VALIDATION_ENABLED"
+	ContentType = "Content-Type"
+	Referer     = "Referer"
+	UserAgent   = "User-Agent"
 )
