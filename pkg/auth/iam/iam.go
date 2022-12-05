@@ -67,8 +67,6 @@ type ErrorResponse struct {
 
 // NewFilter creates new Filter instance
 func NewFilter(client iam.Client) *Filter {
-	SetDevStackTracer()
-
 	options := &FilterInitializationOptions{}
 	return &Filter{iamClient: client, options: options}
 }
@@ -82,8 +80,6 @@ func NewFilter(client iam.Client) *Filter {
 //		SubdomainValidationExcludedNamespaces: ["foundations"]
 //	})
 func NewFilterWithOptions(client iam.Client, options *FilterInitializationOptions) *Filter {
-	SetDevStackTracer()
-
 	if options == nil {
 		return &Filter{iamClient: client, options: &FilterInitializationOptions{}}
 	}
@@ -529,9 +525,8 @@ func respondError(httpStatus, errorCode int, errorMessage string) restful.Servic
 	}
 }
 
-// SetDevStackTracer used for activate verbose error message in non-prod environment
-func SetDevStackTracer() {
-	DevStackTraceable = true
+func init() {
+	DevStackTraceable = true // activate verbose insufficient error message in non-prod environment
 	realmName, realmNameExists := os.LookupEnv("REALM_NAME")
 	if !realmNameExists {
 		DevStackTraceable = false
