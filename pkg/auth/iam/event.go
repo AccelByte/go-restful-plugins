@@ -44,7 +44,7 @@ const (
 	InvalidPaginationParameters = 20021
 	TokenIsNotUserToken         = 20022
 	InvalidRefererHeader        = 20023
-	SubdomainMismatch           = 20024
+	SubdomainMismatch           = 20030
 )
 
 var ErrorCodeMapping = map[int]string{
