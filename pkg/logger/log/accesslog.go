@@ -75,8 +75,9 @@ func init() {
 		value, err := strconv.ParseInt(s, 0, 64)
 		if err != nil {
 			logrus.Errorf("Parse FULL_ACCESS_LOG_MAX_BODY_SIZE env error: %v", err)
+		} else {
+			FullAccessLogMaxBodySize = int(value)
 		}
-		FullAccessLogMaxBodySize = int(value)
 	}
 
 	FullAccessLogRequestBodyEnabled = true
@@ -84,8 +85,9 @@ func init() {
 		value, err := strconv.ParseBool(s)
 		if err != nil {
 			logrus.Errorf("Parse FULL_ACCESS_LOG_REQUEST_BODY_ENABLED env error: %v", err)
+		} else {
+			FullAccessLogRequestBodyEnabled = value
 		}
-		FullAccessLogRequestBodyEnabled = value
 	}
 
 	FullAccessLogResponseBodyEnabled = true
@@ -93,8 +95,9 @@ func init() {
 		value, err := strconv.ParseBool(s)
 		if err != nil {
 			logrus.Errorf("Parse FULL_ACCESS_LOG_RESPONSE_BODY_ENABLED env error: %v", err)
+		} else {
+			FullAccessLogResponseBodyEnabled = value
 		}
-		FullAccessLogResponseBodyEnabled = value
 	}
 }
 
