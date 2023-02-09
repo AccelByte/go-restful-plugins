@@ -9,7 +9,7 @@ require (
 	github.com/AccelByte/public-source-ip v1.0.1
 	github.com/DataDog/datadog-go v4.3.0+incompatible // indirect
 	github.com/HdrHistogram/hdrhistogram-go v1.1.0 // indirect
-	github.com/emicklei/go-restful v2.15.0+incompatible // indirect
+	github.com/emicklei/go-restful v2.16.0+incompatible // indirect
 	github.com/emicklei/go-restful/v3 v3.5.2
 	github.com/fatih/structs v1.1.0
 	github.com/google/uuid v1.1.5
