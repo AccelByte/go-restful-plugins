@@ -428,11 +428,22 @@ func (filter *Filter) validateRefererHeader(request *restful.Request, claims *ia
 		logrus.Errorf("validate referer header error: %v", err.Error())
 		return false
 	}
+
+	referer := request.HeaderParameter(constant.Referer)
+	if filter.options.SubdomainValidationEnabled && referer != "" {
+		refererURL, err := url.Parse(referer)
+		if err != nil {
+			return false
+		}
+		if !strings.HasPrefix(refererURL.Host, strings.ToLower(claims.Namespace)) {
+			return false
+		}
+	}
+
 	if len(clientInfo.RedirectURI) == 0 {
 		return true
 	}
 
-	referer := request.HeaderParameter(constant.Referer)
 	if referer != "" {
 		refererDomain := util.GetDomain(referer)
 		clientRedirectURIs := strings.Split(clientInfo.RedirectURI, ",")
