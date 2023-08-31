@@ -4,12 +4,10 @@ go 1.13
 
 require (
 	github.com/AccelByte/go-jose v2.1.4+incompatible
-	github.com/AccelByte/go-restful-plugins/v3 v3.2.2 // indirect
-	github.com/AccelByte/iam-go-sdk v1.8.1
+	github.com/AccelByte/iam-go-sdk/v2 v2.1.1
 	github.com/AccelByte/public-source-ip v1.0.1
 	github.com/DataDog/datadog-go v4.3.0+incompatible // indirect
 	github.com/HdrHistogram/hdrhistogram-go v1.1.0 // indirect
-	github.com/emicklei/go-restful v2.15.0+incompatible // indirect
 	github.com/emicklei/go-restful/v3 v3.5.2
 	github.com/fatih/structs v1.1.0
 	github.com/google/uuid v1.1.5

@@ -21,12 +21,12 @@ import (
 
 	"github.com/AccelByte/go-jose/jwt"
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/logger/event"
-	"github.com/AccelByte/iam-go-sdk"
+	"github.com/AccelByte/iam-go-sdk/v2"
 	"github.com/emicklei/go-restful/v3"
 	"github.com/stretchr/testify/assert"
 )
 
-//nolint: dupl,funlen // most part of the test is identical
+// nolint: dupl,funlen // most part of the test is identical
 func TestExtractDefaultWithJWT(t *testing.T) {
 	t.Parallel()
 
