@@ -26,7 +26,7 @@ import (
 
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/auth/util"
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/constant"
-	"github.com/AccelByte/iam-go-sdk"
+	"github.com/AccelByte/iam-go-sdk/v2"
 	"github.com/emicklei/go-restful/v3"
 	"github.com/sirupsen/logrus"
 )

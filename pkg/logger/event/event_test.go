@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/AccelByte/go-jose/jwt"
-	"github.com/AccelByte/iam-go-sdk"
+	"github.com/AccelByte/iam-go-sdk/v2"
 	"github.com/emicklei/go-restful/v3"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -262,7 +262,7 @@ func TestWithNoEventID(t *testing.T) {
 	assert.Contains(t, evt.additionalFields, "test")
 }
 
-//nolint: dupl,funlen
+// nolint: dupl,funlen
 func TestInfoLogWithJWTClaims(t *testing.T) {
 	t.Parallel()
 
