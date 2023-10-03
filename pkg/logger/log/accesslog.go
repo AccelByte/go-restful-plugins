@@ -43,7 +43,7 @@ var (
 )
 
 const (
-	fullAccessLogFormat = `time=%s log_type=access method=%s path="%s" status=%d duration=%d length=%d source_ip=%s user_agent="%s" referer="%s" trace_id=%s namespace=%s user_id=%s client_id=%s request_content_type="%s" request_body=AB[%s]AB response_content_type="%s" response_body=AB[%s]AB operation="%s"`
+	fullAccessLogFormat = `time=%s log_type=access method=%s path="%s" status=%d duration=%d length=%d source_ip=%s user_agent="%s" referer="%s" trace_id=%s namespace=%s user_id=%s client_id=%s request_content_type="%s" request_body=AB[%s]AB response_content_type="%s" response_body=AB[%s]AB operation="%s" flight_id="%s" game_version="%s" sdk_version="%s" oss_version="%s"`
 )
 
 // fullAccessLogFormatter represent logrus.Formatter,
@@ -114,6 +114,10 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 	sourceIP := publicsourceip.PublicIP(&http.Request{Header: req.Request.Header})
 	referer := req.HeaderParameter(constant.Referer)
 	userAgent := req.HeaderParameter(constant.UserAgent)
+	flightID := req.HeaderParameter(constant.FlightID)
+	gameClientVersion := req.HeaderParameter(constant.GameClientVersion)
+	abSDKVersion := req.HeaderParameter(constant.AccelByteSDKVersion)
+	abOSSVersion := req.HeaderParameter(constant.AccelByteOSSVersion)
 	requestContentType := req.HeaderParameter(constant.ContentType)
 	requestBody := "-"
 
@@ -213,6 +217,10 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 		responseContentType,
 		responseBody,
 		operation,
+		flightID,
+		gameClientVersion,
+		abSDKVersion,
+		abOSSVersion,
 	)
 }
 

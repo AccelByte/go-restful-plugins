@@ -15,10 +15,14 @@
 package constant
 
 const (
-	ContentType      = "Content-Type"
-	Referer          = "Referer"
-	UserAgent        = "User-Agent"
-	DefaultRealmLive = "prod,live,demo,trial"
+	ContentType         = "Content-Type"
+	Referer             = "Referer"
+	UserAgent           = "User-Agent"
+	GameClientVersion   = "Game-Client-Version"
+	AccelByteSDKVersion = "AccelByte-SDK-Version"
+	AccelByteOSSVersion = "AccelByte-OSS-Version"
+	FlightID            = "x-flight-id"
+	DefaultRealmLive    = "prod,live,demo,trial"
 )
 
 const (
