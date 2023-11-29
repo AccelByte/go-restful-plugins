@@ -26,6 +26,7 @@ const (
 	logType               = "event"
 	TraceIDKey            = "X-Ab-TraceID"
 	SessionIDKey          = "X-Ab-SessionID"
+	FlightIDKey           = "x-flight-id"
 )
 
 type event struct {
@@ -41,6 +42,7 @@ type event struct {
 	TargetNamespace  string                 `structs:"target_namespace"`
 	TraceID          string                 `structs:"trace_id"`
 	SessionID        string                 `structs:"session_id"`
+	FlightID         string                 `structs:"flight_id"`
 	additionalFields map[string]interface{} `structs:"-"`
 	Realm            string                 `structs:"realm"`
 	topic            string                 `structs:"-"`
@@ -53,12 +55,12 @@ type event struct {
 
 // ExtractAttribute is a function to extract userID, clientID and namespace from restful.Request
 type extractAttribute func(req *restful.Request) (userID string, clientID []string, namespace string, traceID string,
-	sessionID string)
+	sessionID string, flightID string)
 
 // extractNull is null function for extracting attribute
 var extractNull extractAttribute = func(req *restful.Request) (userID string, clientID []string, namespace string,
-	traceID string, sessionID string) {
-	return "", []string{}, "", req.HeaderParameter(TraceIDKey), req.HeaderParameter(SessionIDKey)
+	traceID string, sessionID string, flightID string) {
+	return "", []string{}, "", req.HeaderParameter(TraceIDKey), req.HeaderParameter(SessionIDKey), req.HeaderParameter(FlightIDKey)
 }
 
 func init() {
@@ -92,7 +94,7 @@ func Log(realm string, service string, fn extractAttribute) restful.FilterFuncti
 			return
 		}
 
-		evt.UserID, evt.ClientIDs, evt.Namespace, evt.TraceID, evt.SessionID = fn(req)
+		evt.UserID, evt.ClientIDs, evt.Namespace, evt.TraceID, evt.SessionID, evt.FlightID = fn(req)
 
 		fields := structs.Map(req.Attribute(eventLogAttribute))
 		for key, value := range evt.additionalFields {

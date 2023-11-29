@@ -32,7 +32,7 @@ func TestExtractDefaultWithJWT(t *testing.T) {
 
 	ws := new(restful.WebService)
 
-	var UserID, Namespace, traceID, sessionID string
+	var UserID, Namespace, traceID, sessionID, flightID string
 
 	var ClientIDs []string
 
@@ -50,7 +50,7 @@ func TestExtractDefaultWithJWT(t *testing.T) {
 					},
 				})
 
-				UserID, ClientIDs, Namespace, traceID, sessionID = ExtractDefault(request)
+				UserID, ClientIDs, Namespace, traceID, sessionID, flightID = ExtractDefault(request)
 			}))
 
 	container := restful.NewContainer()
@@ -60,6 +60,7 @@ func TestExtractDefaultWithJWT(t *testing.T) {
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
 	req.Header.Set(traceIDKey, "testTraceID")
 	req.Header.Set(sessionIDKey, "testSesssionID")
+	req.Header.Set(flightIDKey, "testFlightID")
 
 	resp := httptest.NewRecorder()
 	container.ServeHTTP(resp, req)
@@ -69,6 +70,7 @@ func TestExtractDefaultWithJWT(t *testing.T) {
 	assert.Equal(t, "testNamespace", Namespace)
 	assert.Equal(t, "testTraceID", traceID)
 	assert.Equal(t, "testSesssionID", sessionID)
+	assert.Equal(t, "testFlightID", flightID)
 }
 
 func TestExtractDefaultWithoutJWT(t *testing.T) {
@@ -76,7 +78,7 @@ func TestExtractDefaultWithoutJWT(t *testing.T) {
 
 	ws := new(restful.WebService)
 
-	var UserID, Namespace, traceID, sessionID string
+	var UserID, Namespace, traceID, sessionID, flightID string
 
 	var ClientIDs []string
 
@@ -86,7 +88,7 @@ func TestExtractDefaultWithoutJWT(t *testing.T) {
 			Param(restful.PathParameter("namespace", "namespace")).
 			Param(restful.PathParameter("id", "user ID")).
 			To(func(request *restful.Request, response *restful.Response) {
-				UserID, ClientIDs, Namespace, traceID, sessionID = ExtractDefault(request)
+				UserID, ClientIDs, Namespace, traceID, sessionID, flightID = ExtractDefault(request)
 			}))
 
 	container := restful.NewContainer()
@@ -96,6 +98,7 @@ func TestExtractDefaultWithoutJWT(t *testing.T) {
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
 	req.Header.Set(traceIDKey, "testTraceID")
 	req.Header.Set(sessionIDKey, "testSesssionID")
+	req.Header.Set(flightIDKey, "testFlightID")
 
 	resp := httptest.NewRecorder()
 	container.ServeHTTP(resp, req)
@@ -105,4 +108,5 @@ func TestExtractDefaultWithoutJWT(t *testing.T) {
 	assert.Equal(t, "", Namespace)
 	assert.Equal(t, "testTraceID", traceID)
 	assert.Equal(t, "testSesssionID", sessionID)
+	assert.Equal(t, "testFlightID", flightID)
 }
