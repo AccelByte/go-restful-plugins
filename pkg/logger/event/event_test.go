@@ -270,14 +270,14 @@ func TestInfoLogWithJWTClaims(t *testing.T) {
 
 	ws := new(restful.WebService)
 	extract := func(req *restful.Request) (userID string, clientID []string, namespace string, traceID string,
-		sessionID string) {
+		sessionID string, flightID string) {
 		claims := req.Attribute(ClaimsAttribute).(*iam.JWTClaims)
 		if claims != nil {
 			return claims.Subject, claims.Audience, claims.Namespace,
-				req.HeaderParameter(TraceIDKey), req.HeaderParameter(SessionIDKey)
+				req.HeaderParameter(TraceIDKey), req.HeaderParameter(SessionIDKey), req.HeaderParameter(FlightIDKey)
 		}
 
-		return "", []string{}, "", req.HeaderParameter(TraceIDKey), req.HeaderParameter(SessionIDKey)
+		return "", []string{}, "", req.HeaderParameter(TraceIDKey), req.HeaderParameter(SessionIDKey), req.HeaderParameter(FlightIDKey)
 	}
 	ws.Filter(Log("test", "iam", extract))
 

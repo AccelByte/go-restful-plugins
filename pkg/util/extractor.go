@@ -22,18 +22,20 @@ import (
 const (
 	traceIDKey   = "X-Ab-TraceID"
 	sessionIDKey = "X-Ab-SessionID"
+	flightIDKey  = "x-flight-id"
 )
 
 // ExtractDefault is default function for extracting attribute for filter event logger
 func ExtractDefault(req *restful.Request) (userID string, clientID []string,
-	namespace string, traceID string, sessionID string) {
+	namespace string, traceID string, sessionID string, flightID string) {
 	traceID = req.HeaderParameter(traceIDKey)
 	sessionID = req.HeaderParameter(sessionIDKey)
+	flightID = req.HeaderParameter(flightIDKey)
 
 	claims := iam.RetrieveJWTClaims(req)
 	if claims != nil {
-		return claims.Subject, []string{claims.ClientID}, claims.Namespace, traceID, sessionID
+		return claims.Subject, []string{claims.ClientID}, claims.Namespace, traceID, sessionID, flightID
 	}
 
-	return "", []string{}, "", traceID, sessionID
+	return "", []string{}, "", traceID, sessionID, flightID
 }
