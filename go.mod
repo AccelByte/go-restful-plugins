@@ -5,6 +5,7 @@ go 1.13
 require (
 	github.com/AccelByte/go-jose v2.1.4+incompatible
 	github.com/AccelByte/iam-go-sdk/v2 v2.1.1
+	github.com/AccelByte/ic-go-sdk v0.0.0-20231219062429-d0005bcafcc3
 	github.com/AccelByte/public-source-ip v1.0.1
 	github.com/DataDog/datadog-go v4.3.0+incompatible // indirect
 	github.com/HdrHistogram/hdrhistogram-go v1.1.0 // indirect
@@ -20,9 +21,7 @@ require (
 	github.com/uber/jaeger-client-go v2.25.0+incompatible
 	github.com/uber/jaeger-lib v2.4.0+incompatible // indirect
 	github.com/willf/bitset v1.1.11 // indirect
-	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2 // indirect
-	golang.org/x/sys v0.0.0-20210119212857-b64e53b001e4 // indirect
 	golang.org/x/time v0.0.0-20201208040808-7e3f01d25324 // indirect
 	gopkg.in/DataDog/dd-trace-go.v1 v1.28.0
 )
