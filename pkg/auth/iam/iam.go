@@ -61,8 +61,14 @@ type Filter struct {
 
 // ErrorResponse is the generic structure for communicating errors from a REST endpoint.
 type ErrorResponse struct {
-	ErrorCode    int    `json:"errorCode"`
-	ErrorMessage string `json:"errorMessage"`
+	ErrorCode          int         `json:"errorCode"`
+	ErrorMessage       string      `json:"errorMessage"`
+	RequiredPermission *Permission `json:"requiredPermission,omitempty"`
+}
+
+type Permission struct {
+	Resource string `json:"resource"`
+	Action   int    `json:"action"`
 }
 
 // NewFilter creates new Filter instance
@@ -292,8 +298,11 @@ func WithPermission(permission *iam.Permission) FilterOption {
 				permission.Resource, action)
 		}
 		if !valid {
-			return respondError(http.StatusForbidden, InsufficientPermissions,
-				"access forbidden: "+insufficientPermissionMessage)
+			return respondErrorWithRequiredPermission(http.StatusForbidden, InsufficientPermissions,
+				"access forbidden: "+insufficientPermissionMessage, Permission{
+					Resource: permission.Resource,
+					Action:   permission.Action,
+				})
 		}
 
 		return nil
@@ -517,6 +526,30 @@ func respondError(httpStatus, errorCode int, errorMessage string) restful.Servic
 	messageByte, err := json.Marshal(ErrorResponse{
 		ErrorCode:    errorCode,
 		ErrorMessage: errorMessage,
+	})
+	if err != nil {
+		errMsgByte, _ := json.Marshal(ErrorResponse{
+			ErrorCode:    InternalServerError,
+			ErrorMessage: "unable to parse error message : " + err.Error(),
+		})
+
+		return restful.ServiceError{
+			Code:    http.StatusInternalServerError,
+			Message: string(errMsgByte),
+		}
+	}
+
+	return restful.ServiceError{
+		Code:    httpStatus,
+		Message: string(messageByte),
+	}
+}
+
+func respondErrorWithRequiredPermission(httpStatus, errorCode int, errorMessage string, requiredPermission Permission) restful.ServiceError {
+	messageByte, err := json.Marshal(ErrorResponse{
+		ErrorCode:          errorCode,
+		ErrorMessage:       errorMessage,
+		RequiredPermission: &requiredPermission,
 	})
 	if err != nil {
 		errMsgByte, _ := json.Marshal(ErrorResponse{
