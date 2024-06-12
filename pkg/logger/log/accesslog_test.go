@@ -28,46 +28,46 @@ import (
 func TestGetRequestBody(t *testing.T) {
 	t.Parallel()
 
-	requestBody1 := getRequestBody(createDummyRequest("", ""), "")
+	requestBody1 := getRequestBody(createDummyRequest("", ""), "", "")
 	assert.Equal(t, "", requestBody1)
 
-	requestBody2 := getRequestBody(createDummyRequest("{\"foo\":\"bar\"}", "application/json"), "application/json")
+	requestBody2 := getRequestBody(createDummyRequest("{\"foo\":\"bar\"}", "application/json"), "application/json", "")
 	assert.Equal(t, "{\"foo\":\"bar\"}", requestBody2)
 
 	// uncompleted json
-	requestBody3 := getRequestBody(createDummyRequest("{\"foo\":\"bar\"", "application/json"), "application/json")
+	requestBody3 := getRequestBody(createDummyRequest("{\"foo\":\"bar\"", "application/json"), "application/json", "")
 	assert.Equal(t, "{\"foo\":\"bar\"", requestBody3)
 
-	requestBody4 := getRequestBody(createDummyRequest("foo=bar&foo2=bar2", "application/x-www-form-urlencoded"), "application/x-www-form-urlencoded")
+	requestBody4 := getRequestBody(createDummyRequest("foo=bar&foo2=bar2", "application/x-www-form-urlencoded"), "application/x-www-form-urlencoded", "")
 	assert.Equal(t, "foo=bar&foo2=bar2", requestBody4)
 
-	requestBody5 := getRequestBody(createDummyRequest("test test test", "text/plain"), "text/plain")
+	requestBody5 := getRequestBody(createDummyRequest("test test test", "text/plain"), "text/plain", "")
 	assert.Equal(t, "test test test", requestBody5)
 
-	requestBody6 := getRequestBody(createDummyRequest("test test test", "unidentified-type"), "unidentified-type")
+	requestBody6 := getRequestBody(createDummyRequest("test test test", "unidentified-type"), "unidentified-type", "")
 	assert.Equal(t, "", requestBody6)
 }
 
 func TestGetResponseBody(t *testing.T) {
 	t.Parallel()
 
-	responseBody1 := getResponseBody(createDummyResponse("", ""), "")
+	responseBody1 := getResponseBody(createDummyResponse("", ""), "", "")
 	assert.Equal(t, "", responseBody1)
 
-	responseBody2 := getResponseBody(createDummyResponse("{\"foo\":\"bar\"}", "application/json"), "application/json")
+	responseBody2 := getResponseBody(createDummyResponse("{\"foo\":\"bar\"}", "application/json"), "application/json", "")
 	assert.Equal(t, "{\"foo\":\"bar\"}", responseBody2)
 
 	// uncompleted json
-	responseBody3 := getResponseBody(createDummyResponse("{\"foo\":\"bar\"", "application/json"), "application/json")
+	responseBody3 := getResponseBody(createDummyResponse("{\"foo\":\"bar\"", "application/json"), "application/json", "")
 	assert.Equal(t, "{\"foo\":\"bar\"", responseBody3)
 
-	responseBody4 := getResponseBody(createDummyResponse("foo=bar&foo2=bar2", "application/x-www-form-urlencoded"), "application/x-www-form-urlencoded")
+	responseBody4 := getResponseBody(createDummyResponse("foo=bar&foo2=bar2", "application/x-www-form-urlencoded"), "application/x-www-form-urlencoded", "")
 	assert.Equal(t, "foo=bar&foo2=bar2", responseBody4)
 
-	responseBody5 := getResponseBody(createDummyResponse("test test test", "text/plain"), "text/plain")
+	responseBody5 := getResponseBody(createDummyResponse("test test test", "text/plain"), "text/plain", "")
 	assert.Equal(t, "test test test", responseBody5)
 
-	responseBody6 := getResponseBody(createDummyResponse("test test test", "unidentified-type"), "unidentified-type")
+	responseBody6 := getResponseBody(createDummyResponse("test test test", "unidentified-type"), "unidentified-type", "")
 	assert.Equal(t, "", responseBody6)
 }
 
@@ -88,7 +88,7 @@ test test test test test test test test test test test test test test test test 
 test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test 
 test test test test test test test test`
 
-	requestBody := getRequestBody(createDummyRequest(largeData, "text/plain"), "text/plain")
+	requestBody := getRequestBody(createDummyRequest(largeData, "text/plain"), "text/plain", "")
 	assert.Equal(t, "data too large", requestBody)
 }
 
@@ -109,7 +109,7 @@ test test test test test test test test test test test test test test test test 
 test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test 
 test test test test test test test test`
 
-	responseBody := getResponseBody(createDummyResponse(largeData, "text/plain"), "text/plain")
+	responseBody := getResponseBody(createDummyResponse(largeData, "text/plain"), "text/plain", "")
 	assert.Equal(t, "data too large", responseBody)
 }
 
