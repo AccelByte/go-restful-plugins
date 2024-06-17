@@ -121,9 +121,15 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 	requestContentType := req.HeaderParameter(constant.ContentType)
 	requestBody := "-"
 
+	requestUri := req.Request.URL.RequestURI()
+	// mask sensitive field(s)
+	if maskedQueryParams := req.Attribute(MaskedQueryParamsAttribute); maskedQueryParams != nil {
+		requestUri = MaskQueryParams(requestUri, maskedQueryParams.(string))
+	}
+
 	if FullAccessLogEnabled {
 		if FullAccessLogRequestBodyEnabled {
-			requestBody = getRequestBody(req, requestContentType)
+			requestBody = getRequestBody(req, requestContentType, requestUri)
 		}
 	}
 
@@ -157,12 +163,6 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 		}
 	}
 
-	requestUri := req.Request.URL.RequestURI()
-	// mask sensitive field(s)
-	if maskedQueryParams := req.Attribute(MaskedQueryParamsAttribute); maskedQueryParams != nil {
-		requestUri = MaskQueryParams(requestUri, maskedQueryParams.(string))
-	}
-
 	responseContentType := respWriterInterceptor.Header().Get(constant.ContentType)
 	responseBody := "-"
 
@@ -177,7 +177,7 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 		}
 
 		if FullAccessLogResponseBodyEnabled {
-			responseBody = getResponseBody(respWriterInterceptor, responseContentType)
+			responseBody = getResponseBody(respWriterInterceptor, responseContentType, requestUri)
 			// mask sensitive field(s)
 			if maskedResponseFields := req.Attribute(MaskedResponseFieldsAttribute); maskedResponseFields != nil && responseBody != "" {
 				responseBody = MaskFields(responseContentType, responseBody, maskedResponseFields.(string))
@@ -225,7 +225,7 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 }
 
 // getRequestBody will get the request body from Request object
-func getRequestBody(req *restful.Request, contentType string) string {
+func getRequestBody(req *restful.Request, contentType, requestURL string) string {
 	if contentType == "" || !isSupportedContentType(contentType) {
 		return ""
 	}
@@ -243,7 +243,11 @@ func getRequestBody(req *restful.Request, contentType string) string {
 		}
 
 		if strings.Contains(contentType, "application/json") {
-			return util.MinifyJSON(bodyBytes)
+			mJson, mErr := util.MinifyJSON(bodyBytes)
+			if mErr != nil {
+				logrus.Infof("failed to minify request body json, error: %v, source:%s, %s", mErr.Error(), mJson, requestURL)
+			}
+			return mJson
 		}
 
 		bodyString := string(bodyBytes)
@@ -255,7 +259,7 @@ func getRequestBody(req *restful.Request, contentType string) string {
 }
 
 // getResponseBody will get the response body from ResponseWriterInterceptor object
-func getResponseBody(respWriter *ResponseWriterInterceptor, contentType string) string {
+func getResponseBody(respWriter *ResponseWriterInterceptor, contentType, requestURL string) string {
 	if contentType == "" || !isSupportedContentType(contentType) {
 		return ""
 	}
@@ -265,7 +269,11 @@ func getResponseBody(respWriter *ResponseWriterInterceptor, contentType string) 
 	}
 
 	if strings.Contains(contentType, "application/json") {
-		return util.MinifyJSON(respWriter.data)
+		mJson, mErr := util.MinifyJSON(respWriter.data)
+		if mErr != nil {
+			logrus.Warnf("failed to minify response body json, error: %v, source:%s, %s", mErr.Error(), mJson, requestURL)
+		}
+		return mJson
 	}
 
 	bodyString := string(respWriter.data)

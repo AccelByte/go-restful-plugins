@@ -99,7 +99,7 @@ func TestMinifyJSON(t *testing.T) {
 		expected := inputAndExpected[i][1]
 
 		bytes := []byte(input)
-		result := MinifyJSON(bytes)
+		result, _ := MinifyJSON(bytes)
 		fmt.Println("-------------------------------")
 		fmt.Printf("input: %v\n", input)
 		fmt.Printf("expected: %v\n", expected)
