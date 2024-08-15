@@ -208,6 +208,90 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 	}
 }
 
+// AuthWithoutSubdomainValidation returns a filter that filters request with valid access token in auth header or cookie
+// The difference with Auth() is this function won't check for subdomain validation even if it's active in configuration.
+//
+// The token's claims will be passed in the request.attributes["JWTClaims"] = *iam.JWTClaims{}
+// This filter is expandable through FilterOption parameter
+// Example:
+// iam.AuthWithoutSubdomainValidation(
+//
+//	WithValidUser(),
+//	WithPermission("ADMIN"),
+//
+// )
+func (filter *Filter) AuthWithoutSubdomainValidation(opts ...FilterOption) restful.FilterFunction {
+	return func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
+		token, tokenFrom, err := parseAccessToken(req)
+		if err != nil {
+			logrus.Warn("unauthorized access: ", err)
+			logIfErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
+				ErrorCode:    UnauthorizedAccess,
+				ErrorMessage: ErrorCodeMapping[UnauthorizedAccess],
+			}, restful.MIME_JSON))
+
+			return
+		}
+
+		claims, err := filter.iamClient.ValidateAndParseClaims(token)
+		if err != nil {
+			logrus.Warn("unauthorized access: ", err)
+			if err.Error() == ErrorCodeMapping[TokenIsExpired] {
+				logIfErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
+					ErrorCode:    TokenIsExpired,
+					ErrorMessage: ErrorCodeMapping[TokenIsExpired],
+				}, restful.MIME_JSON))
+				return
+			}
+			logIfErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
+				ErrorCode:    UnauthorizedAccess,
+				ErrorMessage: ErrorCodeMapping[UnauthorizedAccess],
+			}, restful.MIME_JSON))
+			return
+		}
+
+		req.SetAttribute(ClaimsAttribute, claims)
+
+		if tokenFrom == tokenFromCookie {
+			valid := filter.validateRefererHeader(req, claims)
+			if !valid {
+				logIfErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
+					ErrorCode:    InvalidRefererHeader,
+					ErrorMessage: ErrorCodeMapping[InvalidRefererHeader],
+				}, restful.MIME_JSON))
+
+				return
+			}
+		}
+
+		for _, opt := range opts {
+			if err = opt(req, filter.iamClient, claims); err != nil {
+				if svcErr, ok := err.(restful.ServiceError); ok {
+					logrus.Warn(svcErr.Message)
+
+					var respErr ErrorResponse
+
+					err = json.Unmarshal([]byte(svcErr.Message), &respErr)
+					if err == nil {
+						logIfErr(resp.WriteHeaderAndJson(svcErr.Code, respErr, restful.MIME_JSON))
+					} else {
+						logIfErr(resp.WriteErrorString(svcErr.Code, svcErr.Message))
+					}
+
+					return
+				}
+
+				logrus.Warn(err)
+				logIfErr(resp.WriteErrorString(http.StatusUnauthorized, err.Error()))
+
+				return
+			}
+		}
+
+		chain.ProcessFilter(req, resp)
+	}
+}
+
 // PublicAuth returns a filter that allow unauthenticate request and request with valid access token in auth header or cookie
 // If request has acces token, the token's claims will be passed in the request.attributes["JWTClaims"] = *iam.JWTClaims{}
 // If request has invalid access token, then request treated as public access without claims
