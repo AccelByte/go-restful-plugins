@@ -126,86 +126,7 @@ func FilterInitializationOptionsFromEnv() *FilterInitializationOptions {
 //
 // )
 func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
-	return func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
-		token, tokenFrom, err := parseAccessToken(req)
-		if err != nil {
-			logrus.Warn("unauthorized access: ", err)
-			logIfErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
-				ErrorCode:    UnauthorizedAccess,
-				ErrorMessage: ErrorCodeMapping[UnauthorizedAccess],
-			}, restful.MIME_JSON))
-
-			return
-		}
-
-		claims, err := filter.iamClient.ValidateAndParseClaims(token)
-		if err != nil {
-			logrus.Warn("unauthorized access: ", err)
-			if err.Error() == ErrorCodeMapping[TokenIsExpired] {
-				logIfErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
-					ErrorCode:    TokenIsExpired,
-					ErrorMessage: ErrorCodeMapping[TokenIsExpired],
-				}, restful.MIME_JSON))
-				return
-			}
-			logIfErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
-				ErrorCode:    UnauthorizedAccess,
-				ErrorMessage: ErrorCodeMapping[UnauthorizedAccess],
-			}, restful.MIME_JSON))
-			return
-		}
-
-		req.SetAttribute(ClaimsAttribute, claims)
-
-		if tokenFrom == tokenFromCookie {
-			valid := filter.validateRefererHeader(req, claims)
-			if !valid {
-				logIfErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
-					ErrorCode:    InvalidRefererHeader,
-					ErrorMessage: ErrorCodeMapping[InvalidRefererHeader],
-				}, restful.MIME_JSON))
-
-				return
-			}
-		}
-
-		if filter.options.SubdomainValidationEnabled {
-			if valid := validateSubdomainAgainstNamespace(getHost(req.Request), claims.Namespace, filter.options.SubdomainValidationExcludedNamespaces); !valid {
-				logIfErr(resp.WriteHeaderAndJson(http.StatusNotFound, ErrorResponse{
-					ErrorCode:    SubdomainMismatch,
-					ErrorMessage: "data not found: " + ErrorCodeMapping[SubdomainMismatch],
-				}, restful.MIME_JSON))
-
-				return
-			}
-		}
-
-		for _, opt := range opts {
-			if err = opt(req, filter.iamClient, claims); err != nil {
-				if svcErr, ok := err.(restful.ServiceError); ok {
-					logrus.Warn(svcErr.Message)
-
-					var respErr ErrorResponse
-
-					err = json.Unmarshal([]byte(svcErr.Message), &respErr)
-					if err == nil {
-						logIfErr(resp.WriteHeaderAndJson(svcErr.Code, respErr, restful.MIME_JSON))
-					} else {
-						logIfErr(resp.WriteErrorString(svcErr.Code, svcErr.Message))
-					}
-
-					return
-				}
-
-				logrus.Warn(err)
-				logIfErr(resp.WriteErrorString(http.StatusUnauthorized, err.Error()))
-
-				return
-			}
-		}
-
-		chain.ProcessFilter(req, resp)
-	}
+	return filter.authFunc(false, opts...)
 }
 
 // AuthWithoutSubdomainValidation returns a filter that filters request with valid access token in auth header or cookie
@@ -221,6 +142,10 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 //
 // )
 func (filter *Filter) AuthWithoutSubdomainValidation(opts ...FilterOption) restful.FilterFunction {
+	return filter.authFunc(true, opts...)
+}
+
+func (filter *Filter) authFunc(skipSubdomainValidation bool, opts ...FilterOption) restful.FilterFunction {
 	return func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
 		token, tokenFrom, err := parseAccessToken(req)
 		if err != nil {
@@ -258,6 +183,17 @@ func (filter *Filter) AuthWithoutSubdomainValidation(opts ...FilterOption) restf
 				logIfErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
 					ErrorCode:    InvalidRefererHeader,
 					ErrorMessage: ErrorCodeMapping[InvalidRefererHeader],
+				}, restful.MIME_JSON))
+
+				return
+			}
+		}
+
+		if filter.options.SubdomainValidationEnabled && !skipSubdomainValidation {
+			if valid := validateSubdomainAgainstNamespace(getHost(req.Request), claims.Namespace, filter.options.SubdomainValidationExcludedNamespaces); !valid {
+				logIfErr(resp.WriteHeaderAndJson(http.StatusNotFound, ErrorResponse{
+					ErrorCode:    SubdomainMismatch,
+					ErrorMessage: "data not found: " + ErrorCodeMapping[SubdomainMismatch],
 				}, restful.MIME_JSON))
 
 				return
