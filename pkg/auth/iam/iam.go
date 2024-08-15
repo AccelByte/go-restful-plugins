@@ -178,7 +178,7 @@ func (filter *Filter) authFunc(skipSubdomainValidation bool, opts ...FilterOptio
 		req.SetAttribute(ClaimsAttribute, claims)
 
 		if tokenFrom == tokenFromCookie {
-			valid := filter.validateRefererHeader(req, claims)
+			valid := filter.validateRefererHeader(req, claims, skipSubdomainValidation)
 			if !valid {
 				logIfErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
 					ErrorCode:    InvalidRefererHeader,
@@ -257,7 +257,7 @@ func (filter *Filter) PublicAuth(opts ...FilterOption) restful.FilterFunction {
 		req.SetAttribute(ClaimsAttribute, claims)
 
 		if tokenFrom == tokenFromCookie {
-			valid := filter.validateRefererHeader(req, claims)
+			valid := filter.validateRefererHeader(req, claims, false)
 			if !valid {
 				req.SetAttribute(ClaimsAttribute, nil)
 				chain.ProcessFilter(req, resp)
@@ -451,7 +451,7 @@ func parseAccessToken(request *restful.Request) (string, string, error) {
 
 // validateRefererHeader is used validate the referer header against client's redirectURIs.
 // we're not using Origin header since it will null for GET request.
-func (filter *Filter) validateRefererHeader(request *restful.Request, claims *iam.JWTClaims) bool {
+func (filter *Filter) validateRefererHeader(request *restful.Request, claims *iam.JWTClaims, skipSubdomainValidation bool) bool {
 	clientInfo, err := filter.iamClient.GetClientInformation(claims.Namespace, claims.ClientID)
 	if err != nil {
 		logrus.Errorf("validate referer header error: %v", err.Error())
@@ -459,7 +459,7 @@ func (filter *Filter) validateRefererHeader(request *restful.Request, claims *ia
 	}
 
 	referer := request.HeaderParameter(constant.Referer)
-	if filter.options.SubdomainValidationEnabled && referer != "" {
+	if filter.options.SubdomainValidationEnabled && referer != "" && !skipSubdomainValidation {
 		refererURL, err := url.Parse(referer)
 		if err != nil {
 			return false
@@ -477,7 +477,7 @@ func (filter *Filter) validateRefererHeader(request *restful.Request, claims *ia
 		refererDomain := util.GetDomain(referer)
 		clientRedirectURIs := strings.Split(clientInfo.RedirectURI, ",")
 		for _, redirectURI := range clientRedirectURIs {
-			if filter.options.AllowSubdomainMatchRefererHeaderValidation {
+			if filter.options.AllowSubdomainMatchRefererHeaderValidation && !skipSubdomainValidation {
 				if validateRefererWithoutSubdomain(referer, redirectURI) {
 					return true
 				}
