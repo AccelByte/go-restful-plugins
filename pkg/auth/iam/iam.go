@@ -126,6 +126,26 @@ func FilterInitializationOptionsFromEnv() *FilterInitializationOptions {
 //
 // )
 func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
+	return filter.authFunc(false, opts...)
+}
+
+// AuthWithoutSubdomainValidation returns a filter that filters request with valid access token in auth header or cookie
+// The difference with Auth() is this function won't check for subdomain validation even if it's active in configuration.
+//
+// The token's claims will be passed in the request.attributes["JWTClaims"] = *iam.JWTClaims{}
+// This filter is expandable through FilterOption parameter
+// Example:
+// iam.AuthWithoutSubdomainValidation(
+//
+//	WithValidUser(),
+//	WithPermission("ADMIN"),
+//
+// )
+func (filter *Filter) AuthWithoutSubdomainValidation(opts ...FilterOption) restful.FilterFunction {
+	return filter.authFunc(true, opts...)
+}
+
+func (filter *Filter) authFunc(skipSubdomainValidation bool, opts ...FilterOption) restful.FilterFunction {
 	return func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
 		token, tokenFrom, err := parseAccessToken(req)
 		if err != nil {
@@ -169,7 +189,7 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 			}
 		}
 
-		if filter.options.SubdomainValidationEnabled {
+		if filter.options.SubdomainValidationEnabled && !skipSubdomainValidation {
 			if valid := validateSubdomainAgainstNamespace(getHost(req.Request), claims.Namespace, filter.options.SubdomainValidationExcludedNamespaces); !valid {
 				logIfErr(resp.WriteHeaderAndJson(http.StatusNotFound, ErrorResponse{
 					ErrorCode:    SubdomainMismatch,
