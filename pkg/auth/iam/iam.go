@@ -129,23 +129,23 @@ func (filter *Filter) Auth(opts ...FilterOption) restful.FilterFunction {
 	return filter.authFunc(false, opts...)
 }
 
-// AuthWithoutSubdomainValidation returns a filter that filters request with valid access token in auth header or cookie
-// The difference with Auth() is this function won't check for subdomain validation even if it's active in configuration.
+// AuthAllowEmptySubdomain returns a filter that filters request with valid access token in auth header or cookie
+// The difference with Auth() is this function will also allow request without subdomain
 //
 // The token's claims will be passed in the request.attributes["JWTClaims"] = *iam.JWTClaims{}
 // This filter is expandable through FilterOption parameter
 // Example:
-// iam.AuthWithoutSubdomainValidation(
+// iam.AuthAllowEmptySubdomain(
 //
 //	WithValidUser(),
 //	WithPermission("ADMIN"),
 //
 // )
-func (filter *Filter) AuthWithoutSubdomainValidation(opts ...FilterOption) restful.FilterFunction {
+func (filter *Filter) AuthAllowEmptySubdomain(opts ...FilterOption) restful.FilterFunction {
 	return filter.authFunc(true, opts...)
 }
 
-func (filter *Filter) authFunc(skipSubdomainValidation bool, opts ...FilterOption) restful.FilterFunction {
+func (filter *Filter) authFunc(allowEmptySubdomain bool, opts ...FilterOption) restful.FilterFunction {
 	return func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
 		token, tokenFrom, err := parseAccessToken(req)
 		if err != nil {
@@ -178,7 +178,7 @@ func (filter *Filter) authFunc(skipSubdomainValidation bool, opts ...FilterOptio
 		req.SetAttribute(ClaimsAttribute, claims)
 
 		if tokenFrom == tokenFromCookie {
-			valid := filter.validateRefererHeader(req, claims, skipSubdomainValidation)
+			valid := filter.validateRefererHeader(req, claims, allowEmptySubdomain)
 			if !valid {
 				logIfErr(resp.WriteHeaderAndJson(http.StatusUnauthorized, ErrorResponse{
 					ErrorCode:    InvalidRefererHeader,
@@ -189,7 +189,7 @@ func (filter *Filter) authFunc(skipSubdomainValidation bool, opts ...FilterOptio
 			}
 		}
 
-		if filter.options.SubdomainValidationEnabled && !skipSubdomainValidation {
+		if filter.options.SubdomainValidationEnabled && !allowEmptySubdomain {
 			if valid := validateSubdomainAgainstNamespace(getHost(req.Request), claims.Namespace, filter.options.SubdomainValidationExcludedNamespaces); !valid {
 				logIfErr(resp.WriteHeaderAndJson(http.StatusNotFound, ErrorResponse{
 					ErrorCode:    SubdomainMismatch,
@@ -451,7 +451,7 @@ func parseAccessToken(request *restful.Request) (string, string, error) {
 
 // validateRefererHeader is used validate the referer header against client's redirectURIs.
 // we're not using Origin header since it will null for GET request.
-func (filter *Filter) validateRefererHeader(request *restful.Request, claims *iam.JWTClaims, skipSubdomainValidation bool) bool {
+func (filter *Filter) validateRefererHeader(request *restful.Request, claims *iam.JWTClaims, allowEmptySubdomain bool) bool {
 	clientInfo, err := filter.iamClient.GetClientInformation(claims.Namespace, claims.ClientID)
 	if err != nil {
 		logrus.Errorf("validate referer header error: %v", err.Error())
@@ -459,7 +459,7 @@ func (filter *Filter) validateRefererHeader(request *restful.Request, claims *ia
 	}
 
 	referer := request.HeaderParameter(constant.Referer)
-	if filter.options.SubdomainValidationEnabled && referer != "" && !skipSubdomainValidation {
+	if filter.options.SubdomainValidationEnabled && referer != "" && !allowEmptySubdomain {
 		refererURL, err := url.Parse(referer)
 		if err != nil {
 			return false
@@ -474,10 +474,21 @@ func (filter *Filter) validateRefererHeader(request *restful.Request, claims *ia
 	}
 
 	if referer != "" {
+		if allowEmptySubdomain {
+			refererURL, err := url.Parse(referer)
+			if err != nil {
+				return false
+			}
+
+			if !validateSubdomainAgainstNamespace(refererURL.Host, claims.Namespace, []string{}) {
+				return false
+			}
+		}
+
 		refererDomain := util.GetDomain(referer)
 		clientRedirectURIs := strings.Split(clientInfo.RedirectURI, ",")
 		for _, redirectURI := range clientRedirectURIs {
-			if filter.options.AllowSubdomainMatchRefererHeaderValidation && !skipSubdomainValidation {
+			if filter.options.AllowSubdomainMatchRefererHeaderValidation {
 				if validateRefererWithoutSubdomain(referer, redirectURI) {
 					return true
 				}
@@ -494,6 +505,7 @@ func (filter *Filter) validateRefererHeader(request *restful.Request, claims *ia
 				}
 			}
 		}
+
 	}
 
 	logrus.Warnf("request has invalid referer header. referer header: %s. client redirect uri: %s",
