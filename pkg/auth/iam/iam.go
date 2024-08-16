@@ -474,17 +474,6 @@ func (filter *Filter) validateRefererHeader(request *restful.Request, claims *ia
 	}
 
 	if referer != "" {
-		if allowEmptySubdomain {
-			refererURL, err := url.Parse(referer)
-			if err != nil {
-				return false
-			}
-
-			if !validateSubdomainAgainstNamespace(refererURL.Host, claims.Namespace, []string{}) {
-				return false
-			}
-		}
-
 		refererDomain := util.GetDomain(referer)
 		clientRedirectURIs := strings.Split(clientInfo.RedirectURI, ",")
 		for _, redirectURI := range clientRedirectURIs {
@@ -505,7 +494,6 @@ func (filter *Filter) validateRefererHeader(request *restful.Request, claims *ia
 				}
 			}
 		}
-
 	}
 
 	logrus.Warnf("request has invalid referer header. referer header: %s. client redirect uri: %s",

@@ -623,7 +623,7 @@ func TestValidateRefererHeaderWithSubdomain_SimpleRedirectURI(t *testing.T) {
 func TestValidateRefererHeaderWithSubdomain_SimpleRedirectURISkipSubdomainValidation(t *testing.T) {
 	iamClient := &iam.MockClient{
 		Healthy:     true,
-		RedirectURI: "https://example.com",
+		RedirectURI: "https://dev.example.com,https://example.com",
 	}
 	filter := NewFilterWithOptions(iamClient, &FilterInitializationOptions{AllowSubdomainMatchRefererHeaderValidation: true, SubdomainValidationEnabled: true})
 
@@ -632,6 +632,11 @@ func TestValidateRefererHeaderWithSubdomain_SimpleRedirectURISkipSubdomainValida
 		refererHeader string
 		allowed       bool
 	}{
+		{
+			name:          "normal referer with subdomain",
+			refererHeader: "https://dev.example.com",
+			allowed:       true,
+		},
 		{
 			name:          "normal referer with subdomain",
 			refererHeader: "https://example.com",
@@ -663,14 +668,14 @@ func TestValidateRefererHeaderWithSubdomain_SimpleRedirectURISkipSubdomainValida
 			allowed:       true,
 		},
 		{
-			name:          "wrong subdomain",
+			name:          "different subdomain",
 			refererHeader: "https://subdomain.example.com",
-			allowed:       false,
+			allowed:       true,
 		},
 		{
-			name:          "wrong subdomain",
+			name:          "different subdomain",
 			refererHeader: "https://subdomain.example.com/admin/path",
-			allowed:       false,
+			allowed:       true,
 		},
 		{
 			name:          "wrong referer",
