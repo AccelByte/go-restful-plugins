@@ -643,9 +643,24 @@ func TestValidateRefererHeaderWithSubdomain_SimpleRedirectURISkipSubdomainValida
 			allowed:       true,
 		},
 		{
-			name:          "normal referer",
-			refererHeader: "https://mock.com/admin/path",
+			name:          "normal referer with subdomain",
+			refererHeader: "https://mock.example.com",
+			allowed:       true,
+		},
+		{
+			name:          "incorrect domain",
+			refererHeader: "https://mock.com",
 			allowed:       false,
+		},
+		{
+			name:          "incorrect domain",
+			refererHeader: "https://mock.example.net",
+			allowed:       false,
+		},
+		{
+			name:          "normal referer with subdomain",
+			refererHeader: "https://mock.example.com/admin/path",
+			allowed:       true,
 		},
 		{
 			name:          "wrong subdomain",
