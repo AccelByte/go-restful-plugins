@@ -96,19 +96,16 @@ func init() {
 		}
 		FullAccessLogResponseBodyEnabled = value
 	}
+
+	fullAccessLogLogger = &logrus.Logger{
+		Out:       os.Stdout,
+		Level:     logrus.GetLevel(),
+		Formatter: &fullAccessLogFormatter{},
+	}
 }
 
 // AccessLog is a filter that will log incoming request into the Access Log format
 func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
-	// initialize custom logger for full access log
-	if fullAccessLogLogger == nil {
-		fullAccessLogLogger = &logrus.Logger{
-			Out:       os.Stdout,
-			Level:     logrus.GetLevel(),
-			Formatter: &fullAccessLogFormatter{},
-		}
-	}
-
 	start := time.Now()
 
 	sourceIP := publicsourceip.PublicIP(&http.Request{Header: req.Request.Header})
