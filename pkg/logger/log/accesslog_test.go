@@ -28,47 +28,59 @@ import (
 func TestGetRequestBody(t *testing.T) {
 	t.Parallel()
 
-	requestBody1 := getRequestBody(createDummyRequest("", ""), "", "")
+	requestBody1, requestBodySize1 := getRequestBody(createDummyRequest("", ""), "", "")
 	assert.Equal(t, "", requestBody1)
+	assert.Equal(t, 0, requestBodySize1)
 
-	requestBody2 := getRequestBody(createDummyRequest("{\"foo\":\"bar\"}", "application/json"), "application/json", "")
+	requestBody2, requestBodySize2 := getRequestBody(createDummyRequest("{\"foo\":\"bar\"}", "application/json"), "application/json", "")
 	assert.Equal(t, "{\"foo\":\"bar\"}", requestBody2)
+	assert.Equal(t, len("{\"foo\":\"bar\"}"), requestBodySize2)
 
 	// uncompleted json
-	requestBody3 := getRequestBody(createDummyRequest("{\"foo\":\"bar\"", "application/json"), "application/json", "")
+	requestBody3, requestBodySize3 := getRequestBody(createDummyRequest("{\"foo\":\"bar\"", "application/json"), "application/json", "")
 	assert.Equal(t, "{\"foo\":\"bar\"", requestBody3)
+	assert.Equal(t, len("{\"foo\":\"bar\""), requestBodySize3)
 
-	requestBody4 := getRequestBody(createDummyRequest("foo=bar&foo2=bar2", "application/x-www-form-urlencoded"), "application/x-www-form-urlencoded", "")
+	requestBody4, requestBodySize4 := getRequestBody(createDummyRequest("foo=bar&foo2=bar2", "application/x-www-form-urlencoded"), "application/x-www-form-urlencoded", "")
 	assert.Equal(t, "foo=bar&foo2=bar2", requestBody4)
+	assert.Equal(t, len("foo=bar&foo2=bar2"), requestBodySize4)
 
-	requestBody5 := getRequestBody(createDummyRequest("test test test", "text/plain"), "text/plain", "")
+	requestBody5, requestBodySize5 := getRequestBody(createDummyRequest("test test test", "text/plain"), "text/plain", "")
 	assert.Equal(t, "test test test", requestBody5)
+	assert.Equal(t, len("test test test"), requestBodySize5)
 
-	requestBody6 := getRequestBody(createDummyRequest("test test test", "unidentified-type"), "unidentified-type", "")
+	requestBody6, requestBodySize6 := getRequestBody(createDummyRequest("test test test", "unidentified-type"), "unidentified-type", "")
 	assert.Equal(t, "", requestBody6)
+	assert.Equal(t, 0, requestBodySize6)
 }
 
 func TestGetResponseBody(t *testing.T) {
 	t.Parallel()
 
-	responseBody1 := getResponseBody(createDummyResponse("", ""), "", "")
+	responseBody1, responseBodySize1 := getResponseBody(createDummyResponse("", ""), "", "")
 	assert.Equal(t, "", responseBody1)
+	assert.Equal(t, 0, responseBodySize1)
 
-	responseBody2 := getResponseBody(createDummyResponse("{\"foo\":\"bar\"}", "application/json"), "application/json", "")
+	responseBody2, responseBodySize2 := getResponseBody(createDummyResponse("{\"foo\":\"bar\"}", "application/json"), "application/json", "")
 	assert.Equal(t, "{\"foo\":\"bar\"}", responseBody2)
+	assert.Equal(t, len([]byte("{\"foo\":\"bar\"}")), responseBodySize2)
 
 	// uncompleted json
-	responseBody3 := getResponseBody(createDummyResponse("{\"foo\":\"bar\"", "application/json"), "application/json", "")
+	responseBody3, responseBodySize3 := getResponseBody(createDummyResponse("{\"foo\":\"bar\"", "application/json"), "application/json", "")
 	assert.Equal(t, "{\"foo\":\"bar\"", responseBody3)
+	assert.Equal(t, len([]byte("{\"foo\":\"bar\"")), responseBodySize3)
 
-	responseBody4 := getResponseBody(createDummyResponse("foo=bar&foo2=bar2", "application/x-www-form-urlencoded"), "application/x-www-form-urlencoded", "")
+	responseBody4, responseBodySize4 := getResponseBody(createDummyResponse("foo=bar&foo2=bar2", "application/x-www-form-urlencoded"), "application/x-www-form-urlencoded", "")
 	assert.Equal(t, "foo=bar&foo2=bar2", responseBody4)
+	assert.Equal(t, len([]byte("foo=bar&foo2=bar2")), responseBodySize4)
 
-	responseBody5 := getResponseBody(createDummyResponse("test test test", "text/plain"), "text/plain", "")
+	responseBody5, responseBodySize5 := getResponseBody(createDummyResponse("test test test", "text/plain"), "text/plain", "")
 	assert.Equal(t, "test test test", responseBody5)
+	assert.Equal(t, len([]byte("test test test")), responseBodySize5)
 
-	responseBody6 := getResponseBody(createDummyResponse("test test test", "unidentified-type"), "unidentified-type", "")
+	responseBody6, responseBodySize6 := getResponseBody(createDummyResponse("test test test", "unidentified-type"), "unidentified-type", "")
 	assert.Equal(t, "", responseBody6)
+	assert.Equal(t, 0, responseBodySize6)
 }
 
 // nolint:paralleltest
@@ -88,8 +100,9 @@ test test test test test test test test test test test test test test test test 
 test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test 
 test test test test test test test test`
 
-	requestBody := getRequestBody(createDummyRequest(largeData, "text/plain"), "text/plain", "")
+	requestBody, requestBodySize := getRequestBody(createDummyRequest(largeData, "text/plain"), "text/plain", "")
 	assert.Equal(t, "data too large", requestBody)
+	assert.Equal(t, len(largeData), requestBodySize)
 }
 
 // nolint:paralleltest
@@ -109,8 +122,9 @@ test test test test test test test test test test test test test test test test 
 test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test 
 test test test test test test test test`
 
-	responseBody := getResponseBody(createDummyResponse(largeData, "text/plain"), "text/plain", "")
+	responseBody, responseBodySize := getResponseBody(createDummyResponse(largeData, "text/plain"), "text/plain", "")
 	assert.Equal(t, "data too large", responseBody)
+	assert.Equal(t, len(largeData), responseBodySize)
 }
 
 func createDummyRequest(content string, contentType string) *restful.Request {
