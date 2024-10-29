@@ -43,7 +43,9 @@ var (
 )
 
 const (
-	fullAccessLogFormat = `time=%s log_type=access method=%s path="%s" status=%d duration=%d length=%d source_ip=%s user_agent="%s" referer="%s" trace_id=%s namespace=%s user_id=%s client_id=%s request_content_type="%s" request_body=AB[%s]AB request_body_size=%d response_content_type="%s" response_body=AB[%s]AB response_body_size=%d operation="%s" flight_id="%s" game_version="%s" sdk_version="%s" oss_version="%s"`
+	fullAccessLogFormat = `time=%s log_type=access method=%s path="%s" status=%d duration=%d length=%d source_ip=%s user_agent="%s" referer="%s" trace_id=%s namespace=%s user_id=%s client_id=%s request_content_type="%s" request_body=AB[%s]AB request_body_size_in_kb=%.3f response_content_type="%s" response_body=AB[%s]AB response_body_size_in_kb=%.3f operation="%s" flight_id="%s" game_version="%s" sdk_version="%s" oss_version="%s"`
+
+	kb = 1 << 10
 )
 
 // fullAccessLogFormatter represent logrus.Formatter,
@@ -117,7 +119,7 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 	abOSSVersion := req.HeaderParameter(constant.AccelByteOSSVersion)
 	requestContentType := req.HeaderParameter(constant.ContentType)
 	requestBody := "-"
-	requestBodySize := 0
+	var requestBodySizeInKB float32 = 0
 
 	requestUri := req.Request.URL.RequestURI()
 	// mask sensitive field(s)
@@ -127,7 +129,7 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 
 	if FullAccessLogEnabled {
 		if FullAccessLogRequestBodyEnabled {
-			requestBody, requestBodySize = getRequestBody(req, requestContentType, requestUri)
+			requestBody, requestBodySizeInKB = getRequestBody(req, requestContentType, requestUri)
 		}
 	}
 
@@ -163,7 +165,7 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 
 	responseContentType := respWriterInterceptor.Header().Get(constant.ContentType)
 	responseBody := "-"
-	responseBodySize := 0
+	var responseBodySizeInKB float32 = 0
 
 	if FullAccessLogEnabled {
 		if FullAccessLogRequestBodyEnabled {
@@ -176,7 +178,7 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 		}
 
 		if FullAccessLogResponseBodyEnabled {
-			responseBody, responseBodySize = getResponseBody(respWriterInterceptor, responseContentType, requestUri)
+			responseBody, responseBodySizeInKB = getResponseBody(respWriterInterceptor, responseContentType, requestUri)
 			// mask sensitive field(s)
 			if maskedResponseFields := req.Attribute(MaskedResponseFieldsAttribute); maskedResponseFields != nil && responseBody != "" {
 				responseBody = MaskFields(responseContentType, responseBody, maskedResponseFields.(string))
@@ -213,10 +215,10 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 		tokenClientID,
 		requestContentType,
 		requestBody,
-		requestBodySize,
+		requestBodySizeInKB,
 		responseContentType,
 		responseBody,
-		responseBodySize,
+		responseBodySizeInKB,
 		operation,
 		flightID,
 		gameClientVersion,
@@ -226,7 +228,7 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 }
 
 // getRequestBody will get the request body from Request object
-func getRequestBody(req *restful.Request, contentType, requestURL string) (string, int) {
+func getRequestBody(req *restful.Request, contentType, requestURL string) (string, float32) {
 	if contentType == "" || !isSupportedContentType(contentType) {
 		return "", 0
 	}
@@ -238,9 +240,12 @@ func getRequestBody(req *restful.Request, contentType, requestURL string) (strin
 	if len(bodyBytes) != 0 {
 		// set the original bytes back into request body reader
 		req.Request.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+
 		requestBodySize := len(bodyBytes)
+		requestBodySizeInKB := float32(requestBodySize) / kb
+
 		if requestBodySize > FullAccessLogMaxBodySize {
-			return "data too large", requestBodySize
+			return "data too large", requestBodySizeInKB
 		}
 
 		if strings.Contains(contentType, "application/json") {
@@ -248,27 +253,28 @@ func getRequestBody(req *restful.Request, contentType, requestURL string) (strin
 			if mErr != nil {
 				logrus.Infof("failed to minify request body json, error: %v, source:%s, %s", mErr.Error(), mJson, requestURL)
 			}
-			return mJson, requestBodySize
+			return mJson, requestBodySizeInKB
 		}
 
 		bodyString := string(bodyBytes)
 		bodyString = strings.ReplaceAll(bodyString, "\n", "\\n")
 		bodyString = strings.ReplaceAll(bodyString, "\r", "\\r")
-		return bodyString, requestBodySize
+		return bodyString, requestBodySizeInKB
 	}
 	return "", 0
 }
 
 // getResponseBody will get the response body from ResponseWriterInterceptor object
-func getResponseBody(respWriter *ResponseWriterInterceptor, contentType, requestURL string) (string, int) {
+func getResponseBody(respWriter *ResponseWriterInterceptor, contentType, requestURL string) (string, float32) {
 	if contentType == "" || !isSupportedContentType(contentType) {
 		return "", 0
 	}
 
 	responseBodySize := len(respWriter.data)
+	responseBodySizeInKB := float32(responseBodySize) / kb
 
 	if responseBodySize > FullAccessLogMaxBodySize {
-		return "data too large", responseBodySize
+		return "data too large", responseBodySizeInKB
 	}
 
 	if strings.Contains(contentType, "application/json") {
@@ -276,13 +282,13 @@ func getResponseBody(respWriter *ResponseWriterInterceptor, contentType, request
 		if mErr != nil {
 			logrus.Warnf("failed to minify response body json, error: %v, source:%s, %s", mErr.Error(), mJson, requestURL)
 		}
-		return mJson, responseBodySize
+		return mJson, responseBodySizeInKB
 	}
 
 	bodyString := string(respWriter.data)
 	bodyString = strings.ReplaceAll(bodyString, "\n", "\\n")
 	bodyString = strings.ReplaceAll(bodyString, "\r", "\\r")
-	return bodyString, responseBodySize
+	return bodyString, responseBodySizeInKB
 }
 
 func isSupportedContentType(contentType string) bool {
