@@ -127,11 +127,7 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 		requestUri = MaskQueryParams(requestUri, maskedQueryParams.(string))
 	}
 
-	if FullAccessLogEnabled {
-		if FullAccessLogRequestBodyEnabled {
-			requestBody, requestBodySizeInKB = getRequestBody(req, requestContentType, requestUri)
-		}
-	}
+	requestBody, requestBodySizeInKB = getRequestBody(req, requestContentType, requestUri)
 
 	// decorate the original http.ResponseWriter with ResponseWriterInterceptor so we can intercept to get the response bytes
 	respWriterInterceptor := &ResponseWriterInterceptor{ResponseWriter: resp.ResponseWriter}
@@ -167,6 +163,8 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 	responseBody := "-"
 	var responseBodySizeInKB float32 = 0
 
+	responseBody, responseBodySizeInKB = getResponseBody(respWriterInterceptor, responseContentType, requestUri)
+
 	if FullAccessLogEnabled {
 		if FullAccessLogRequestBodyEnabled {
 			// mask sensitive field(s)
@@ -178,7 +176,6 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 		}
 
 		if FullAccessLogResponseBodyEnabled {
-			responseBody, responseBodySizeInKB = getResponseBody(respWriterInterceptor, responseContentType, requestUri)
 			// mask sensitive field(s)
 			if maskedResponseFields := req.Attribute(MaskedResponseFieldsAttribute); maskedResponseFields != nil && responseBody != "" {
 				responseBody = MaskFields(responseContentType, responseBody, maskedResponseFields.(string))
@@ -244,6 +241,10 @@ func getRequestBody(req *restful.Request, contentType, requestURL string) (strin
 		requestBodySize := len(bodyBytes)
 		requestBodySizeInKB := float32(requestBodySize) / kb
 
+		if !FullAccessLogEnabled || !FullAccessLogRequestBodyEnabled {
+			return "-", requestBodySizeInKB
+		}
+
 		if requestBodySize > FullAccessLogMaxBodySize {
 			return "data too large", requestBodySizeInKB
 		}
@@ -272,6 +273,10 @@ func getResponseBody(respWriter *ResponseWriterInterceptor, contentType, request
 
 	responseBodySize := len(respWriter.data)
 	responseBodySizeInKB := float32(responseBodySize) / kb
+
+	if !FullAccessLogEnabled || !FullAccessLogResponseBodyEnabled {
+		return "-", responseBodySizeInKB
+	}
 
 	if responseBodySize > FullAccessLogMaxBodySize {
 		return "data too large", responseBodySizeInKB

@@ -28,6 +28,9 @@ import (
 func TestGetRequestBody(t *testing.T) {
 	t.Parallel()
 
+	FullAccessLogEnabled = true
+	FullAccessLogRequestBodyEnabled = true
+
 	requestBody1, requestBodySize1 := getRequestBody(createDummyRequest("", ""), "", "")
 	assert.Equal(t, "", requestBody1)
 	assert.Equal(t, float32(0), requestBodySize1)
@@ -56,6 +59,9 @@ func TestGetRequestBody(t *testing.T) {
 
 func TestGetResponseBody(t *testing.T) {
 	t.Parallel()
+
+	FullAccessLogEnabled = true
+	FullAccessLogRequestBodyEnabled = true
 
 	responseBody1, responseBodySize1 := getResponseBody(createDummyResponse("", ""), "", "")
 	assert.Equal(t, "", responseBody1)
@@ -86,6 +92,8 @@ func TestGetResponseBody(t *testing.T) {
 // nolint:paralleltest
 func TestGetRequestBodyThatExceedMaxThreshold(t *testing.T) {
 	FullAccessLogMaxBodySize = 1024 // 1KB
+	FullAccessLogEnabled = true
+	FullAccessLogRequestBodyEnabled = true
 
 	largeData := `test test test test test test test test test test test test test test test test test test 
 test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test 
@@ -108,6 +116,8 @@ test test test test test test test test`
 // nolint:paralleltest
 func TestGetResponseBodyThatExceedMaxThreshold(t *testing.T) {
 	FullAccessLogMaxBodySize = 1024 // 1KB
+	FullAccessLogEnabled = true
+	FullAccessLogRequestBodyEnabled = true
 
 	largeData := `test test test test test test test test test test test test test test test test test test 
 test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test 
