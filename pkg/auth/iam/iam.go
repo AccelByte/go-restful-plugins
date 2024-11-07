@@ -275,9 +275,18 @@ func WithValidUser() FilterOption {
 // WithPermission filters request with valid permission only
 func WithPermission(permission *iam.Permission) FilterOption {
 	return func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error {
+		var pathNamespace = req.PathParameter("namespace")
+		var pathUserId = req.PathParameter("userId")
 		requiredPermissionResources := make(map[string]string)
-		requiredPermissionResources["{namespace}"] = req.PathParameter("namespace")
-		requiredPermissionResources["{userId}"] = req.PathParameter("userId")
+		requiredPermissionResources["{namespace}"] = pathNamespace
+		requiredPermissionResources["{userId}"] = pathUserId
+
+		if pathNamespace != "" && pathUserId != "" && pathUserId == claims.Subject {
+			if pathNamespace != claims.Namespace {
+				return respondError(http.StatusForbidden, ForbiddenAccess,
+					"access forbidden: "+ErrorCodeMapping[ForbiddenAccess])
+			}
+		}
 
 		valid, err := iamClient.ValidatePermission(claims, *permission, requiredPermissionResources)
 		if err != nil {
