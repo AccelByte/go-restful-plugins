@@ -43,7 +43,7 @@ var (
 )
 
 const (
-	fullAccessLogFormat = `time=%s log_type=access method=%s path="%s" status=%d duration=%d length=%d source_ip=%s user_agent="%s" referer="%s" trace_id=%s namespace=%s user_id=%s client_id=%s request_content_type="%s" request_body=AB[%s]AB request_body_size_in_kb=%.3f response_content_type="%s" response_body=AB[%s]AB response_body_size_in_kb=%.3f operation="%s" flight_id="%s" game_version="%s" sdk_version="%s" oss_version="%s"`
+	fullAccessLogFormat = `time=%s log_type=access method=%s path="%s" status=%d duration=%d length=%d source_ip=%s user_agent="%s" referer="%s" trace_id=%s namespace=%s user_id=%s client_id=%s request_content_type="%s" request_body=AB[%s]AB req_body_size_kb=%.3f response_content_type="%s" response_body=AB[%s]AB resp_body_size_kb=%.3f operation="%s" flight_id="%s" game_version="%s" sdk_version="%s" oss_version="%s"`
 
 	kb = 1 << 10
 )
