@@ -16,7 +16,7 @@ package log
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -226,17 +226,18 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 
 // getRequestBody will get the request body from Request object
 func getRequestBody(req *restful.Request, contentType, requestURL string) (string, float32) {
-	if contentType == "" || !isSupportedContentType(contentType) {
+	if contentType == "" || !isSupportedContentType(contentType) || req.Request == nil || req.Request.Body == nil {
 		return "", 0
 	}
 
-	bodyBytes, err := ioutil.ReadAll(req.Request.Body)
+	bodyBytes, err := io.ReadAll(req.Request.Body)
 	if err != nil {
 		logrus.Errorf("failed to read request body: %v", err.Error())
+		return "", 0
 	}
 	if len(bodyBytes) != 0 {
 		// set the original bytes back into request body reader
-		req.Request.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+		req.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
 		requestBodySize := len(bodyBytes)
 		requestBodySizeInKB := float32(requestBodySize) / kb
