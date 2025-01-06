@@ -233,7 +233,6 @@ func getRequestBody(req *restful.Request, contentType, requestURL string) (strin
 	bodyBytes, err := io.ReadAll(req.Request.Body)
 	if err != nil {
 		logrus.Errorf("failed to read request body: %v", err.Error())
-		return "", 0
 	}
 	if len(bodyBytes) != 0 {
 		// set the original bytes back into request body reader
