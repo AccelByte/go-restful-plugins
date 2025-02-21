@@ -24,6 +24,9 @@ type ResponseWriterInterceptor struct {
 }
 
 func (w *ResponseWriterInterceptor) Write(b []byte) (int, error) {
-	w.data = b
+	if w.data == nil {
+        w.data = make([]byte, len(b))
+        copy(w.data, b)
+    }
 	return w.ResponseWriter.Write(b)
 }
