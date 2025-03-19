@@ -122,10 +122,6 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 	var requestBodySizeInKB float32 = 0
 
 	requestUri := req.Request.URL.RequestURI()
-	// mask sensitive field(s)
-	if maskedQueryParams := req.Attribute(MaskedQueryParamsAttribute); maskedQueryParams != nil {
-		requestUri = MaskQueryParams(requestUri, maskedQueryParams.(string))
-	}
 
 	requestBody, requestBodySizeInKB = getRequestBody(req, requestContentType, requestUri)
 
@@ -134,6 +130,14 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 	resp.ResponseWriter = respWriterInterceptor
 
 	chain.ProcessFilter(req, resp)
+
+	// mask sensitive field(s)
+	if maskedQueryParams := req.Attribute(MaskedQueryParamsAttribute); maskedQueryParams != nil {
+		requestUri = MaskQueryParams(requestUri, maskedQueryParams.(string))
+	}
+	if maskedPIIQueryParams := req.Attribute(MaskedPIIQueryParamsAttribute); maskedPIIQueryParams != nil {
+		requestUri = MaskPIIQueryParams(requestUri, maskedPIIQueryParams.(string))
+	}
 
 	var tokenNamespace, tokenUserID, tokenClientID string
 	if val := req.Attribute(NamespaceAttribute); val != nil {
@@ -173,12 +177,18 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 			if maskedRequestFields := req.Attribute(MaskedRequestFieldsAttribute); maskedRequestFields != nil && requestBody != "" {
 				requestBody = MaskFields(requestContentType, requestBody, maskedRequestFields.(string))
 			}
+			if maskedPIIRequestFields := req.Attribute(MaskedPIIRequestFieldsAttribute); maskedPIIRequestFields != nil && requestBody != "" {
+				requestBody = MaskPIIFields(requestContentType, requestBody, maskedPIIRequestFields.(string))
+			}
 		}
 
 		if FullAccessLogResponseBodyEnabled {
 			// mask sensitive field(s)
 			if maskedResponseFields := req.Attribute(MaskedResponseFieldsAttribute); maskedResponseFields != nil && responseBody != "" {
 				responseBody = MaskFields(responseContentType, responseBody, maskedResponseFields.(string))
+			}
+			if maskedPIIResponseFields := req.Attribute(MaskedPIIResponseFieldsAttribute); maskedPIIResponseFields != nil && responseBody != "" {
+				responseBody = MaskPIIFields(responseContentType, responseBody, maskedPIIResponseFields.(string))
 			}
 		}
 	}
