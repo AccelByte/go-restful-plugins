@@ -394,3 +394,494 @@ func TestMaskQueryParam_ConcurrentCall(t *testing.T) {
 
 	wg.Wait()
 }
+
+func TestMaskPIIFieldsInQuery_MaskMultipleFields(t *testing.T) {
+	t.Parallel()
+
+	inputAndExpected := [][]string{
+		// Content-Type = application/json
+		{
+			"application/json",                // content-type
+			"{\"username\":\"username12\"}",   // input
+			"{\"username\":\"username****\"}", // expected
+		},
+		{
+			"application/json",
+			"{\"username\":\"username12\",\"password\":\"mypassword123\"}",
+			"{\"username\":\"username****\",\"password\":\"mypassword123\"}",
+		},
+		{
+			"application/json",
+			"{\"username\":\"username12\",\"emailAddress\":\"test@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+			"{\"username\":\"username****\",\"emailAddress\":\"te****@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+		},
+		{
+			"application/json",
+			"{\"displayName\":\"My Display Name\",\"data\":{\"username\":\"username12\",\"emailAddress\":\"test@accelbyte.net\"}}",
+			"{\"displayName\":\"My Display Name\",\"data\":{\"username\":\"username****\",\"emailAddress\":\"te****@accelbyte.net\"}}",
+		},
+		{
+			"application/json",
+			"{\"username\":\"us\",\"emailAddress\":\"te@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+			"{\"username\":\"u****\",\"emailAddress\":\"t****@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+		},
+		{
+			"application/json",
+			"{\"displayName\":\"My Display Name\",\"data\":{\"username\":\"use\",\"emailAddress\":\"tes@accelbyte.net\"}}",
+			"{\"displayName\":\"My Display Name\",\"data\":{\"username\":\"u****\",\"emailAddress\":\"t****@accelbyte.net\"}}",
+		},
+		// Content-Type = application/x-www-form-urlencoded
+		{
+			"application/x-www-form-urlencoded",
+			"username=username12",
+			"username=username****",
+		},
+		{
+			"application/x-www-form-urlencoded",
+			"username=username12&password=testaccelbytenet",
+			"username=username****&password=testaccelbytenet",
+		},
+		{
+			"application/x-www-form-urlencoded",
+			"username=username12&emailAddress=test@accelbyte.net&displayName=My Display Name",
+			"username=username****&emailAddress=te****@accelbyte.net&displayName=My Display Name",
+		},
+		{
+			"application/x-www-form-urlencoded",
+			"username=use&password=testaccelbytenet&emailAddress=tes@accelbyte.net",
+			"username=u****&password=testaccelbytenet&emailAddress=t****@accelbyte.net",
+		},
+		{
+			"application/x-www-form-urlencoded",
+			"username=us&emailAddress=te@accelbyte.net&displayName=My Display Name",
+			"username=u****&emailAddress=t****@accelbyte.net&displayName=My Display Name",
+		},
+		// Content-Type = plain/text
+		{
+			"plain/text",
+			"{\"username\":\"username12\",\"emailAddress\":\"test@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+			"{\"username\":\"username****\",\"emailAddress\":\"te****@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+		},
+		{
+			"plain/text",
+			"{\"username\":\"us\",\"emailAddress\":\"te@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+			"{\"username\":\"u****\",\"emailAddress\":\"t****@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+		},
+		{
+			"plain/text",
+			"{\"username\":\"use\",\"emailAddress\":\"tes@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+			"{\"username\":\"u****\",\"emailAddress\":\"t****@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+		},
+		{
+			"plain/text",
+			"username=username12&emailAddress=test@accelbyte.net&displayName=My Display Name",
+			"username=username****&emailAddress=te****@accelbyte.net&displayName=My Display Name",
+		},
+		{
+			"plain/text",
+			"username=use&emailAddress=tes@accelbyte.net&displayName=My Display Name",
+			"username=u****&emailAddress=t****@accelbyte.net&displayName=My Display Name",
+		},
+		{
+			"plain/text",
+			"username=us&emailAddress=te@accelbyte.net&displayName=My Display Name",
+			"username=u****&emailAddress=t****@accelbyte.net&displayName=My Display Name",
+		},
+	}
+
+	for _, val := range inputAndExpected {
+		assert.Equal(t, val[2], MaskPIIFields(val[0], val[1], "username,emailAddress"))
+	}
+}
+
+func TestMaskPIIFieldsInQuery_MaskSingleFieldUsername(t *testing.T) {
+	t.Parallel()
+
+	inputAndExpected := [][]string{
+		// Content-Type = application/json
+		{
+			"application/json",                // content-type
+			"{\"username\":\"username12\"}",   // input
+			"{\"username\":\"username****\"}", // expected
+		},
+		{
+			"application/json",
+			"{\"username\":\"username12\",\"password\":\"mypassword123\"}",
+			"{\"username\":\"username****\",\"password\":\"mypassword123\"}",
+		},
+		{
+			"application/json",
+			"{\"username\":\"username12\",\"emailAddress\":\"test@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+			"{\"username\":\"username****\",\"emailAddress\":\"test@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+		},
+		{
+			"application/json",
+			"{\"displayName\":\"My Display Name\",\"data\":{\"username\":\"username12\",\"emailAddress\":\"test@accelbyte.net\"}}",
+			"{\"displayName\":\"My Display Name\",\"data\":{\"username\":\"username****\",\"emailAddress\":\"test@accelbyte.net\"}}",
+		},
+		{
+			"application/json",
+			"{\"username\":\"us\",\"emailAddress\":\"te@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+			"{\"username\":\"u****\",\"emailAddress\":\"te@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+		},
+		{
+			"application/json",
+			"{\"displayName\":\"My Display Name\",\"data\":{\"username\":\"use\",\"emailAddress\":\"tes@accelbyte.net\"}}",
+			"{\"displayName\":\"My Display Name\",\"data\":{\"username\":\"u****\",\"emailAddress\":\"tes@accelbyte.net\"}}",
+		},
+		// Content-Type = application/x-www-form-urlencoded
+		{
+			"application/x-www-form-urlencoded",
+			"username=username12",
+			"username=username****",
+		},
+		{
+			"application/x-www-form-urlencoded",
+			"username=username12&password=testaccelbytenet",
+			"username=username****&password=testaccelbytenet",
+		},
+		{
+			"application/x-www-form-urlencoded",
+			"username=username12&emailAddress=test@accelbyte.net&displayName=My Display Name",
+			"username=username****&emailAddress=test@accelbyte.net&displayName=My Display Name",
+		},
+		{
+			"application/x-www-form-urlencoded",
+			"username=use&password=testaccelbytenet&emailAddress=tes@accelbyte.net",
+			"username=u****&password=testaccelbytenet&emailAddress=tes@accelbyte.net",
+		},
+		{
+			"application/x-www-form-urlencoded",
+			"username=us&emailAddress=te@accelbyte.net&displayName=My Display Name",
+			"username=u****&emailAddress=te@accelbyte.net&displayName=My Display Name",
+		},
+		// Content-Type = plain/text
+		{
+			"plain/text",
+			"{\"username\":\"username12\",\"emailAddress\":\"test@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+			"{\"username\":\"username****\",\"emailAddress\":\"test@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+		},
+		{
+			"plain/text",
+			"{\"username\":\"us\",\"emailAddress\":\"te@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+			"{\"username\":\"u****\",\"emailAddress\":\"te@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+		},
+		{
+			"plain/text",
+			"{\"username\":\"use\",\"emailAddress\":\"tes@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+			"{\"username\":\"u****\",\"emailAddress\":\"tes@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+		},
+		{
+			"plain/text",
+			"username=username12&emailAddress=test@accelbyte.net&displayName=My Display Name",
+			"username=username****&emailAddress=test@accelbyte.net&displayName=My Display Name",
+		},
+		{
+			"plain/text",
+			"username=use&emailAddress=tes@accelbyte.net&displayName=My Display Name",
+			"username=u****&emailAddress=tes@accelbyte.net&displayName=My Display Name",
+		},
+		{
+			"plain/text",
+			"username=us&emailAddress=te@accelbyte.net&displayName=My Display Name",
+			"username=u****&emailAddress=te@accelbyte.net&displayName=My Display Name",
+		},
+	}
+
+	for _, val := range inputAndExpected {
+		assert.Equal(t, val[2], MaskPIIFields(val[0], val[1], "username"))
+	}
+}
+
+func TestMaskPIIFieldsInQuery_MaskSingleFieldEmailAddress(t *testing.T) {
+	t.Parallel()
+
+	inputAndExpected := [][]string{
+		// Content-Type = application/json
+		{
+			"application/json",                            // content-type
+			"{\"emailAddress\":\"test@accelbyte.net\"}",   // input
+			"{\"emailAddress\":\"te****@accelbyte.net\"}", // expected
+		},
+		{
+			"application/json",
+			"{\"emailAddress\":\"test@accelbyte.net\",\"password\":\"mypassword123\"}",
+			"{\"emailAddress\":\"te****@accelbyte.net\",\"password\":\"mypassword123\"}",
+		},
+		{
+			"application/json",
+			"{\"username\":\"username12\",\"emailAddress\":\"test@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+			"{\"username\":\"username12\",\"emailAddress\":\"te****@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+		},
+		{
+			"application/json",
+			"{\"displayName\":\"My Display Name\",\"data\":{\"username\":\"username12\",\"emailAddress\":\"test@accelbyte.net\"}}",
+			"{\"displayName\":\"My Display Name\",\"data\":{\"username\":\"username12\",\"emailAddress\":\"te****@accelbyte.net\"}}",
+		},
+		{
+			"application/json",
+			"{\"username\":\"us\",\"emailAddress\":\"te@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+			"{\"username\":\"us\",\"emailAddress\":\"t****@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+		},
+		{
+			"application/json",
+			"{\"displayName\":\"My Display Name\",\"data\":{\"username\":\"use\",\"emailAddress\":\"tes@accelbyte.net\"}}",
+			"{\"displayName\":\"My Display Name\",\"data\":{\"username\":\"use\",\"emailAddress\":\"t****@accelbyte.net\"}}",
+		},
+		// Content-Type = application/x-www-form-urlencoded
+		{
+			"application/x-www-form-urlencoded",
+			"emailAddress=test@accelbyte.net",
+			"emailAddress=te****@accelbyte.net",
+		},
+		{
+			"application/x-www-form-urlencoded",
+			"emailAddress=test@accelbyte.net&password=testaccelbytenet",
+			"emailAddress=te****@accelbyte.net&password=testaccelbytenet",
+		},
+		{
+			"application/x-www-form-urlencoded",
+			"username=username12&emailAddress=test@accelbyte.net&displayName=My Display Name",
+			"username=username12&emailAddress=te****@accelbyte.net&displayName=My Display Name",
+		},
+		{
+			"application/x-www-form-urlencoded",
+			"username=use&password=testaccelbytenet&emailAddress=tes@accelbyte.net",
+			"username=use&password=testaccelbytenet&emailAddress=t****@accelbyte.net",
+		},
+		{
+			"application/x-www-form-urlencoded",
+			"username=us&emailAddress=te@accelbyte.net&displayName=My Display Name",
+			"username=us&emailAddress=t****@accelbyte.net&displayName=My Display Name",
+		},
+		// Content-Type = plain/text
+		{
+			"plain/text",
+			"{\"username\":\"username12\",\"emailAddress\":\"test@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+			"{\"username\":\"username12\",\"emailAddress\":\"te****@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+		},
+		{
+			"plain/text",
+			"{\"username\":\"us\",\"emailAddress\":\"te@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+			"{\"username\":\"us\",\"emailAddress\":\"t****@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+		},
+		{
+			"plain/text",
+			"{\"username\":\"use\",\"emailAddress\":\"tes@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+			"{\"username\":\"use\",\"emailAddress\":\"t****@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+		},
+		{
+			"plain/text",
+			"username=username12&emailAddress=test@accelbyte.net&displayName=My Display Name",
+			"username=username12&emailAddress=te****@accelbyte.net&displayName=My Display Name",
+		},
+		{
+			"plain/text",
+			"username=use&emailAddress=tes@accelbyte.net&displayName=My Display Name",
+			"username=use&emailAddress=t****@accelbyte.net&displayName=My Display Name",
+		},
+		{
+			"plain/text",
+			"username=us&emailAddress=te@accelbyte.net&displayName=My Display Name",
+			"username=us&emailAddress=t****@accelbyte.net&displayName=My Display Name",
+		},
+	}
+
+	for _, val := range inputAndExpected {
+		assert.Equal(t, val[2], MaskPIIFields(val[0], val[1], "emailAddress"))
+	}
+}
+
+func TestMaskMultiplePIIFields_ButOneFieldDoesNotExist(t *testing.T) {
+	t.Parallel()
+
+	inputAndExpected := [][]string{
+		// Content-Type = application/json
+		{
+			"application/json",                            // content-type
+			"{\"emailAddress\":\"test@accelbyte.net\"}",   // input
+			"{\"emailAddress\":\"te****@accelbyte.net\"}", // expected
+		},
+		{
+			"application/json",
+			"{\"emailAddress\":\"test@accelbyte.net\",\"password\":\"mypassword123\"}",
+			"{\"emailAddress\":\"te****@accelbyte.net\",\"password\":\"mypassword123\"}",
+		},
+		// Content-Type = application/x-www-form-urlencoded
+		{
+			"application/x-www-form-urlencoded",
+			"username=username12",
+			"username=username****",
+		},
+		{
+			"application/x-www-form-urlencoded",
+			"username=use&password=my password",
+			"username=u****&password=my password",
+		},
+		// Content-Type = plain/text
+		{
+			"plain/text",
+			"{\"username\":\"username12\",\"emailAddress\":\"test@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+			"{\"username\":\"username****\",\"emailAddress\":\"te****@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+		},
+		{
+			"plain/text",
+			"username=username12&emailAddress=test@accelbyte.net&displayName=My Display Name",
+			"username=username****&emailAddress=te****@accelbyte.net&displayName=My Display Name",
+		},
+	}
+
+	for _, val := range inputAndExpected {
+		assert.Equal(t, val[2], MaskPIIFields(val[0], val[1], "emailAddress,username,apiKey"))
+	}
+}
+
+func TestMaskPIIFields_ConcurrentCall(t *testing.T) {
+	t.Parallel()
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		input := "{\"username\":\"username12\"}"
+		expected := "{\"username\":\"username****\"}"
+		i := 0
+		for i < 1000 {
+			assert.Equal(t, expected, MaskPIIFields("application/json", input, "username"))
+			i++
+		}
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		input := "{\"emailAddress\":\"test@accelbyte.net\"}"
+		expected := "{\"emailAddress\":\"te****@accelbyte.net\"}"
+
+		i := 0
+		for i < 1000 {
+			assert.Equal(t, expected, MaskPIIFields("application/json", input, "emailAddress"))
+			i++
+		}
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		input := "username=use&emailAddress=tes@accelbyte.net&displayName=My Display Name"
+		expected := "username=u****&emailAddress=t****@accelbyte.net&displayName=My Display Name"
+
+		i := 0
+		for i < 1000 {
+			assert.Equal(t, expected, MaskPIIFields("application/x-www-form-urlencoded", input, "username,emailAddress"))
+			i++
+		}
+		wg.Done()
+	}()
+
+	wg.Wait()
+}
+
+func TestMaskMultiplePIIQueryParams(t *testing.T) {
+	t.Parallel()
+
+	inputAndExpected := [][]string{
+		{
+			"https://example.net?username=username12",   // input
+			"https://example.net?username=username****", // expected
+		},
+		{
+			"https://example.net?username=username12&password=mypassword123&emailAddress=test@accelbyte.net",
+			"https://example.net?username=username****&password=mypassword123&emailAddress=te****@accelbyte.net",
+		},
+		{
+			"https://example.net?username=username 12&password=mypassword123&emailAddress=te@accelbyte.net",
+			"https://example.net?username=username ****&password=mypassword123&emailAddress=t****@accelbyte.net",
+		},
+		{
+			"https://example.net?username=user name12&password=mypassword 123&displayName=My Display Name",
+			"https://example.net?username=user name****&password=mypassword 123&displayName=My Display Name",
+		},
+	}
+
+	for _, val := range inputAndExpected {
+		assert.Equal(t, val[1], MaskPIIQueryParams(val[0], "username,emailAddress"))
+	}
+}
+
+func TestMaskPIIQueryParamOfEncodedURLs(t *testing.T) {
+	t.Parallel()
+
+	inputAndExpected := [][]string{
+		{
+			"https://example.net?username=my%20username&emailAddress=test%40accelbyte.net", // input
+			"https://example.net?username=my userna****&emailAddress=te****@accelbyte.net", // expected
+		},
+		{
+			"https://example.net?username=username12&emailAddress=test%40accelbyte.net&displayName=My%20Display%20Name",
+			"https://example.net?username=username****&emailAddress=te****@accelbyte.net&displayName=My Display Name",
+		},
+		{
+			"https://example.net?openid.ns=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0&openid.mode=id_res&openid.identity=https%3A%2F%2Fsteamcommunity.com%2Fopenid%2Fid%2F123456789&openid.signed=signed%2Cop_endpoint%2Cclaimed_id%2Cidentity&openid.sig=dGhpc19pc19zaWc%3D",
+			"https://example.net?openid.ns=http://specs.openid.net/auth/2.0&openid.mode=id_res&openid.identity=https://steamcommunity.com/openid/id/123456789&openid.signed=signed,op_endpoint,claimed_id,identity&openid.sig=dGhpc19pc19zaWc=",
+		},
+	}
+
+	for _, val := range inputAndExpected {
+		assert.Equal(t, val[1], MaskPIIQueryParams(val[0], "username,emailAddress"))
+	}
+}
+
+func TestMaskPIIQueryParam_ConcurrentCall(t *testing.T) {
+	t.Parallel()
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		input := "https://example.net?emailAddress=test@accelbyte.net"
+		expected := "https://example.net?emailAddress=te****@accelbyte.net"
+		i := 0
+		for i < 1000 {
+			assert.Equal(t, expected, MaskPIIQueryParams(input, "emailAddress"))
+			i++
+		}
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		input := "https://example.net?emailAddress=test%40accelbyte.net"
+		expected := "https://example.net?emailAddress=te****@accelbyte.net"
+		i := 0
+		for i < 1000 {
+			assert.Equal(t, expected, MaskPIIQueryParams(input, "emailAddress"))
+			i++
+		}
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		input := "https://example.net?key=12&username=username12"
+		expected := "https://example.net?key=12&username=username****"
+		i := 0
+		for i < 1000 {
+			assert.Equal(t, expected, MaskPIIQueryParams(input, "username"))
+			i++
+		}
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		input := "https://example.net?username=username12&key=12"
+		expected := "https://example.net?username=username****&key=12"
+		i := 0
+		for i < 1000 {
+			assert.Equal(t, expected, MaskPIIQueryParams(input, "username"))
+			i++
+		}
+		wg.Done()
+	}()
+
+	wg.Wait()
+}

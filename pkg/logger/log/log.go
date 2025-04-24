@@ -19,12 +19,15 @@ import (
 )
 
 const (
-	MaskedQueryParamsAttribute    = "MaskedQueryParams"
-	MaskedRequestFieldsAttribute  = "MaskedRequestFields"
-	MaskedResponseFieldsAttribute = "MaskedResponseFields"
-	UserIDAttribute               = "LogUserId"
-	ClientIDAttribute             = "LogClientId"
-	NamespaceAttribute            = "LogNamespace"
+	MaskedQueryParamsAttribute       = "MaskedQueryParams"
+	MaskedRequestFieldsAttribute     = "MaskedRequestFields"
+	MaskedResponseFieldsAttribute    = "MaskedResponseFields"
+	MaskedPIIQueryParamsAttribute    = "MaskedPIIQueryParams"
+	MaskedPIIRequestFieldsAttribute  = "MaskedPIIRequestFields"
+	MaskedPIIResponseFieldsAttribute = "MaskedPIIResponseFields"
+	UserIDAttribute                  = "LogUserId"
+	ClientIDAttribute                = "LogClientId"
+	NamespaceAttribute               = "LogNamespace"
 )
 
 // Option contains attribute options for log functionality
@@ -35,6 +38,13 @@ type Option struct {
 	MaskedRequestFields string
 	// Field that need to masked in response body, separated with comma
 	MaskedResponseFields string
+
+	// PII Query param that need to be masked in url, separated with comma
+	MaskedPIIQueryParams string
+	// PII Field that need to be masked in request body, separated with comma
+	MaskedPIIRequestFields string
+	// PII Field that need to be masked in response body, separated with comma
+	MaskedPIIResponseFields string
 }
 
 // Attribute filter is used to define the log attribute for the endpoint.
@@ -48,6 +58,16 @@ func Attribute(option Option) restful.FilterFunction {
 		}
 		if option.MaskedResponseFields != "" {
 			req.SetAttribute(MaskedResponseFieldsAttribute, option.MaskedResponseFields)
+		}
+
+		if option.MaskedPIIQueryParams != "" {
+			req.SetAttribute(MaskedPIIQueryParamsAttribute, option.MaskedPIIQueryParams)
+		}
+		if option.MaskedPIIRequestFields != "" {
+			req.SetAttribute(MaskedPIIRequestFieldsAttribute, option.MaskedPIIRequestFields)
+		}
+		if option.MaskedPIIResponseFields != "" {
+			req.SetAttribute(MaskedPIIResponseFieldsAttribute, option.MaskedPIIResponseFields)
 		}
 		chain.ProcessFilter(req, resp)
 	}

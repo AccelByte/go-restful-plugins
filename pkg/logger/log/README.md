@@ -50,9 +50,9 @@ ws.Route(ws.GET("/user/{id}").
 
   Enable capture response body in full access log mode. Default: `true`
 
-### Filter sensitive field(s) in request body or response body
+### Filter sensitive/PII field(s) in request body or response body
 
-Some endpoint might have sensitive field value in its query params, request body or response body.
+Some endpoint might have sensitive/PII field value in its query params, request body or response body.
 For security reason, those sensitive field value should be masked before it printed as a log.
 
 The `log.Attribute` filter can be used to define the field(s) that need to be masked.
@@ -65,6 +65,9 @@ ws.Route(ws.GET("/user/{id}").
         MaskedQueryParams: "param1,param2",
         MaskedRequestFields: "field1,field2",
         MaskedResponseFields: "field3,field4",
+        MaskedPIIQueryParams: "param1,param2",
+        MaskedPIIRequestFields: "field1,field2",
+        MaskedPIIResponseFields: "field3,field4",
     })).
     To(func(request *restful.Request, response *restful.Response) {
 }))
