@@ -42,7 +42,7 @@ type FieldRegex struct {
 func (f *FieldRegex) InitFieldRegex(fieldName string) {
 	f.FieldName = fieldName
 	// "fieldName":"(.*?)"
-	f.JsonPattern = regexp.MustCompile(fmt.Sprintf("\"%s\":\"(.*?)\"", fieldName))
+	f.JsonPattern = regexp.MustCompile(fmt.Sprintf("\"%s\":(\\[.*?\\]|\".*?\")", fieldName))
 	// fieldName=(.*?[^&]*)|fieldName=(.*?)$
 	f.QueryStringPattern = regexp.MustCompile(fmt.Sprintf("%s=(.*?[^&]*)|%s=(.*?)$", fieldName, fieldName))
 }
@@ -126,7 +126,21 @@ func MaskPIIFields(contentType, content, fields string) string {
 		if strings.Contains(contentType, "application/json") {
 			content = fieldRegex.JsonPattern.ReplaceAllStringFunc(content, func(m string) string {
 				parts := fieldRegex.JsonPattern.FindStringSubmatch(m)
-				return fmt.Sprintf(`"%s":"%s"`, fieldName, maskLastNChars(parts[1], defaultMaskCharsCount))
+				if len(parts) < 2 {
+					return m
+				}
+				matched := parts[1]
+				if strings.HasPrefix(matched, "[") {
+					matched = strings.Trim(matched, "[]")
+					items := strings.Split(matched, ",")
+					for i, item := range items {
+						item = strings.TrimSpace(item)
+						item = strings.Trim(item, "\"")
+						items[i] = fmt.Sprintf("\"%s\"", maskLastNChars(item, defaultMaskCharsCount))
+					}
+					return fmt.Sprintf(`"%s":[%s]`, fieldName, strings.Join(items, ","))
+				}
+				return fmt.Sprintf(`"%s":"%s"`, fieldName, maskLastNChars(matched, defaultMaskCharsCount))
 			})
 		} else if strings.Contains(contentType, "application/x-www-form-urlencoded") {
 			content = fieldRegex.QueryStringPattern.ReplaceAllStringFunc(content, func(m string) string {
@@ -141,7 +155,21 @@ func MaskPIIFields(contentType, content, fields string) string {
 			if fieldRegex.JsonPattern.MatchString(content) {
 				content = fieldRegex.JsonPattern.ReplaceAllStringFunc(content, func(m string) string {
 					parts := fieldRegex.JsonPattern.FindStringSubmatch(m)
-					return fmt.Sprintf(`"%s":"%s"`, fieldName, maskLastNChars(parts[1], defaultMaskCharsCount))
+					if len(parts) < 2 {
+						return m
+					}
+					matched := parts[1]
+					if strings.HasPrefix(matched, "[") {
+						matched = strings.Trim(matched, "[]")
+						items := strings.Split(matched, ",")
+						for i, item := range items {
+							item = strings.TrimSpace(item)
+							item = strings.Trim(item, "\"")
+							items[i] = fmt.Sprintf("\"%s\"", maskLastNChars(item, defaultMaskCharsCount))
+						}
+						return fmt.Sprintf(`"%s":[%s]`, fieldName, strings.Join(items, ","))
+					}
+					return fmt.Sprintf(`"%s":"%s"`, fieldName, maskLastNChars(matched, defaultMaskCharsCount))
 				})
 			} else if fieldRegex.QueryStringPattern.MatchString(content) {
 				content = fieldRegex.QueryStringPattern.ReplaceAllStringFunc(content, func(m string) string {
@@ -199,6 +227,31 @@ func maskLastNChars(value string, n int) string {
 		return ""
 	}
 
+	if strings.HasPrefix(value, `"`) {
+		value = strings.Trim(value, `""`)
+	}
+	decoded, err := url.QueryUnescape(value)
+	if err != nil {
+		logrus.Warn("failed to unescape url parameter for masking sensitive data: ", err)
+	} else {
+		value = decoded
+	}
+	if strings.Contains(value, ",") {
+		maskedValues := make([]string, 0)
+		values := strings.Split(value, ",")
+		for _, v := range values {
+			maskedValues = append(maskedValues, mask(v, n))
+		}
+		return strings.Join(maskedValues, ",")
+	} else {
+		return mask(value, n)
+	}
+}
+
+func mask(value string, n int) string {
+	if value == "" {
+		return ""
+	}
 	if strings.Contains(value, "@") {
 		parts := strings.Split(value, "@")
 		if len(parts[0]) <= n {
