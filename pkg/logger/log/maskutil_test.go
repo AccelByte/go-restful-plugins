@@ -401,9 +401,9 @@ func TestMaskPIIFieldsInQuery_MaskMultipleFields(t *testing.T) {
 	inputAndExpected := [][]string{
 		// Content-Type = application/json
 		{
-			"application/json",                // content-type
-			"{\"username\":\"username12\"}",   // input
-			"{\"username\":\"username****\"}", // expected
+			"application/json", // content-type
+			"{\"username\":\"username12\", \"emails\":[\"test1@accelbyte.net\",\"test2@accelbyte.net\"]}",       // input
+			"{\"username\":\"username****\", \"emails\":[\"tes****@accelbyte.net\",\"tes****@accelbyte.net\"]}", // expected
 		},
 		{
 			"application/json",
@@ -459,8 +459,8 @@ func TestMaskPIIFieldsInQuery_MaskMultipleFields(t *testing.T) {
 		// Content-Type = plain/text
 		{
 			"plain/text",
-			"{\"username\":\"username12\",\"emailAddress\":\"test@accelbyte.net\",\"displayName\":\"My Display Name\"}",
-			"{\"username\":\"username****\",\"emailAddress\":\"te****@accelbyte.net\",\"displayName\":\"My Display Name\"}",
+			"{\"username\":\"username12\",\"emailAddress\":\"test@accelbyte.net\",\"displayName\":\"My Display Name\", \"emails\":[\"test1@accelbyte.net\",\"test2@accelbyte.net\"]}",
+			"{\"username\":\"username****\",\"emailAddress\":\"te****@accelbyte.net\",\"displayName\":\"My Display Name\", \"emails\":[\"tes****@accelbyte.net\",\"tes****@accelbyte.net\"]}",
 		},
 		{
 			"plain/text",
@@ -490,7 +490,7 @@ func TestMaskPIIFieldsInQuery_MaskMultipleFields(t *testing.T) {
 	}
 
 	for _, val := range inputAndExpected {
-		assert.Equal(t, val[2], MaskPIIFields(val[0], val[1], "username,emailAddress"))
+		assert.Equal(t, val[2], MaskPIIFields(val[0], val[1], "username,emailAddress,emails"))
 	}
 }
 
@@ -742,11 +742,11 @@ func TestMaskPIIFields_ConcurrentCall(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
-		input := "{\"username\":\"username12\"}"
-		expected := "{\"username\":\"username****\"}"
+		input := "{\"username\":\"username12\", \"emails\":[\"test1@accelbyte.net\",\"test2@accelbyte.net\"]}"
+		expected := "{\"username\":\"username****\", \"emails\":[\"tes****@accelbyte.net\",\"tes****@accelbyte.net\"]}"
 		i := 0
 		for i < 1000 {
-			assert.Equal(t, expected, MaskPIIFields("application/json", input, "username"))
+			assert.Equal(t, expected, MaskPIIFields("application/json", input, "username,emails"))
 			i++
 		}
 		wg.Done()
@@ -801,10 +801,14 @@ func TestMaskMultiplePIIQueryParams(t *testing.T) {
 			"https://example.net?username=user name12&password=mypassword 123&displayName=My Display Name",
 			"https://example.net?username=user name****&password=mypassword 123&displayName=My Display Name",
 		},
+		{
+			"https://example.net?loginIds=test1@accelbyte.net,test2@accelbyte.net&password=mypassword 123&displayName=My Display Name",
+			"https://example.net?loginIds=tes****@accelbyte.net,tes****@accelbyte.net&password=mypassword 123&displayName=My Display Name",
+		},
 	}
 
 	for _, val := range inputAndExpected {
-		assert.Equal(t, val[1], MaskPIIQueryParams(val[0], "username,emailAddress"))
+		assert.Equal(t, val[1], MaskPIIQueryParams(val[0], "username,emailAddress,loginIds"))
 	}
 }
 
@@ -824,10 +828,14 @@ func TestMaskPIIQueryParamOfEncodedURLs(t *testing.T) {
 			"https://example.net?openid.ns=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0&openid.mode=id_res&openid.identity=https%3A%2F%2Fsteamcommunity.com%2Fopenid%2Fid%2F123456789&openid.signed=signed%2Cop_endpoint%2Cclaimed_id%2Cidentity&openid.sig=dGhpc19pc19zaWc%3D",
 			"https://example.net?openid.ns=http://specs.openid.net/auth/2.0&openid.mode=id_res&openid.identity=https://steamcommunity.com/openid/id/123456789&openid.signed=signed,op_endpoint,claimed_id,identity&openid.sig=dGhpc19pc19zaWc=",
 		},
+		{
+			"https://example.net?loginIds=test1%40accelbyte.net,test2%40accelbyte.net&displayName=My%20Display%20Name",
+			"https://example.net?loginIds=tes****@accelbyte.net,tes****@accelbyte.net&displayName=My Display Name",
+		},
 	}
 
 	for _, val := range inputAndExpected {
-		assert.Equal(t, val[1], MaskPIIQueryParams(val[0], "username,emailAddress"))
+		assert.Equal(t, val[1], MaskPIIQueryParams(val[0], "username,emailAddress,loginIds"))
 	}
 }
 
@@ -878,6 +886,18 @@ func TestMaskPIIQueryParam_ConcurrentCall(t *testing.T) {
 		i := 0
 		for i < 1000 {
 			assert.Equal(t, expected, MaskPIIQueryParams(input, "username"))
+			i++
+		}
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		input := "https://example.net?loginIds=test1@accelbyte.net,test2@accelbyte.net&key=12"
+		expected := "https://example.net?loginIds=tes****@accelbyte.net,tes****@accelbyte.net&key=12"
+		i := 0
+		for i < 1000 {
+			assert.Equal(t, expected, MaskPIIQueryParams(input, "loginIds"))
 			i++
 		}
 		wg.Done()
