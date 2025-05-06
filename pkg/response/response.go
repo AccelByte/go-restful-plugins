@@ -72,7 +72,6 @@ func WriteErrorWithEventID(request *restful.Request, response *restful.Response,
 		err = errors.Wrap(err, "unable to write error response")
 		event.Error(request, unableToWriteResponse, serviceType, levelError,
 			fmt.Sprintf("%v: %+v: %v", err, errorResponse, eventErr))
-		fmt.Printf("%+v\n", err)
 
 		return
 	}
@@ -80,12 +79,10 @@ func WriteErrorWithEventID(request *restful.Request, response *restful.Response,
 	if httpStatusCode >= 500 {
 		event.Error(request, eventID, serviceType, levelError,
 			fmt.Sprintf("error: %+v: %v", errorResponse, eventErr))
-		fmt.Printf("%+v\n", eventErr)
 
 		return
 	}
 
 	event.Warn(request, eventID, serviceType, levelWarn,
 		fmt.Sprintf("error: %+v: %v", errorResponse, eventErr))
-	fmt.Printf("%+v\n", eventErr)
 }
