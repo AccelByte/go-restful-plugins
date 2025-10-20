@@ -23,6 +23,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/auth/util"
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/constant"
@@ -404,6 +405,47 @@ func WithValidScope(scope string) FilterOption {
 		if err != nil {
 			return respondError(http.StatusForbidden, InsufficientScope,
 				"access forbidden: "+insufficientScopeMessage)
+		}
+
+		return nil
+	}
+}
+
+// WithBannedTopics prevents access if JWT claims (subject, namespace or client id) match any entry
+// in the provided bannedTopics list. Comparison is case-insensitive and trims whitespace.
+// WithoutBannedTopics creates a FilterOption that checks if a user is banned for specific topics.
+// It validates the user's ban status against a list of banned topics and returns an error if the user
+// is currently banned for any of the specified topics.
+//
+// Parameters:
+//   - bannedTopics: A slice of strings representing the topics to check for bans
+//
+// Returns:
+//   - FilterOption: A function that implements the ban checking logic
+//
+// The filter will:
+//   - Return nil if claims is nil or bannedTopics is empty
+//   - Check each ban in the user's claims against the provided banned topics
+//   - Return a ForbiddenAccess error if the user has an active ban for any of the specified topics
+//   - Include the ban reason and end date in the error message if access is forbidden
+func WithoutBannedTopics(bannedTopics []string) FilterOption {
+	return func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error {
+		if claims == nil || len(bannedTopics) == 0 {
+			return nil
+		}
+		bannedTopicMaps := map[string]bool{}
+		for _, v := range bannedTopics {
+			bannedTopicMaps[v] = true
+		}
+
+		for _, b := range claims.Bans {
+			if _, ok := bannedTopicMaps[b.Ban]; !ok {
+				continue
+			}
+			if time.Now().UTC().Before(b.EndDate) {
+				return respondError(http.StatusForbidden, ForbiddenAccess,
+					fmt.Sprintf("access forbidden: user is banned due to %s ban until %s", b.Ban, b.EndDate.Format(time.RFC3339)))
+			}
 		}
 
 		return nil

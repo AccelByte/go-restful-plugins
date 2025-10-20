@@ -15,10 +15,12 @@
 package iam
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/constant"
 	"github.com/AccelByte/iam-go-sdk/v2"
@@ -1066,4 +1068,117 @@ func TestFilterInitializationOptionsFromEnv_SubdomainValidationExcludedNamespace
 
 	options = FilterInitializationOptionsFromEnv()
 	assert.Empty(t, options.SubdomainValidationExcludedNamespaces)
+}
+
+func TestWithoutBannedTopics(t *testing.T) {
+	timeNow := time.Now().UTC()
+	futureBanTime := timeNow.Add(24 * time.Hour)
+	pastBanTime := timeNow.Add(-24 * time.Hour)
+
+	testCases := []struct {
+		name         string
+		bannedTopics []string
+		claims       *iam.JWTClaims
+		wantErr      bool
+		errMessage   restful.ServiceError
+	}{
+		{
+			name:         "nil claims should pass",
+			bannedTopics: []string{"CHAT", "MATCHMAKING"},
+			claims:       nil,
+			wantErr:      false,
+		},
+		{
+			name:         "empty banned topics should pass",
+			bannedTopics: []string{},
+			claims: &iam.JWTClaims{
+				Bans: []iam.JWTBan{
+					{Ban: "CHAT", EndDate: futureBanTime},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:         "non-matching ban topic should pass",
+			bannedTopics: []string{"MATCHMAKING"},
+			claims: &iam.JWTClaims{
+				Bans: []iam.JWTBan{
+					{Ban: "CHAT", EndDate: futureBanTime},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:         "expired ban should pass",
+			bannedTopics: []string{"CHAT"},
+			claims: &iam.JWTClaims{
+				Bans: []iam.JWTBan{
+					{Ban: "CHAT", EndDate: pastBanTime},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:         "active matching ban should fail",
+			bannedTopics: []string{"MATCHMAKING"},
+			claims: &iam.JWTClaims{
+				Bans: []iam.JWTBan{
+					{Ban: "MATCHMAKING", EndDate: futureBanTime},
+				},
+			},
+			wantErr: true,
+			errMessage: respondError(http.StatusForbidden, ForbiddenAccess,
+				fmt.Sprintf("access forbidden: user is banned due to %s ban until %s", "MATCHMAKING", futureBanTime.Format(time.RFC3339))),
+		},
+		{
+			name:         "multiple bans with one active matching should fail",
+			bannedTopics: []string{"CHAT"},
+			claims: &iam.JWTClaims{
+				Bans: []iam.JWTBan{
+					{Ban: "OTHER", EndDate: futureBanTime},
+					{Ban: "CHAT", EndDate: futureBanTime},
+				},
+			},
+			wantErr: true,
+			errMessage: respondError(http.StatusForbidden, ForbiddenAccess,
+				fmt.Sprintf("access forbidden: user is banned due to %s ban until %s", "CHAT", futureBanTime.Format(time.RFC3339))),
+		},
+		{
+			name:         "active ban present, but bannedTopics does not match ban, should success",
+			bannedTopics: []string{"CHAT"},
+			claims: &iam.JWTClaims{
+				Bans: []iam.JWTBan{
+					{Ban: "MATCHMAKING", EndDate: futureBanTime},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:         "active ban present, but bannedTopics is empty, should succeed",
+			bannedTopics: []string{""},
+			claims: &iam.JWTClaims{
+				Bans: []iam.JWTBan{
+					{Ban: "MATCHMAKING", EndDate: futureBanTime},
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			filterOpt := WithoutBannedTopics(tc.bannedTopics)
+			err := filterOpt(&restful.Request{}, nil, tc.claims)
+
+			if tc.wantErr {
+				assert.Error(t, err)
+				svcErr, ok := err.(restful.ServiceError)
+				assert.True(t, ok)
+				assert.Equal(t, http.StatusForbidden, svcErr.Code)
+				assert.Equal(t, tc.errMessage.Message, svcErr.Message)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }
