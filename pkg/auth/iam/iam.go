@@ -39,6 +39,9 @@ const (
 	accessTokenCookieKey = "access_token"
 	tokenFromCookie      = "cookie"
 	tokenFromHeader      = "header"
+
+	MatchmakingBanTopic = "MATCHMAKING"
+	ChatBanTopic        = "CHAT"
 )
 
 var DevStackTraceable bool
@@ -411,11 +414,10 @@ func WithValidScope(scope string) FilterOption {
 	}
 }
 
-// WithBannedTopics prevents access if JWT claims (subject, namespace or client id) match any entry
-// in the provided bannedTopics list. Comparison is case-insensitive and trims whitespace.
-// WithoutBannedTopics creates a FilterOption that checks if a user is banned for specific topics.
-// It validates the user's ban status against a list of banned topics and returns an error if the user
-// is currently banned for any of the specified topics.
+// WithoutBannedTopics returns a FilterOption that enforces topic-specific bans found in a user's JWT claims.
+//
+// The returned FilterOption checks the provided claims for any active bans whose name appears in the
+// bannedTopics slice. If claims is nil or bannedTopics is empty the filter is a no-op and returns nil.
 //
 // Parameters:
 //   - bannedTopics: A slice of strings representing the topics to check for bans
@@ -423,11 +425,19 @@ func WithValidScope(scope string) FilterOption {
 // Returns:
 //   - FilterOption: A function that implements the ban checking logic
 //
-// The filter will:
-//   - Return nil if claims is nil or bannedTopics is empty
-//   - Check each ban in the user's claims against the provided banned topics
-//   - Return a ForbiddenAccess error if the user has an active ban for any of the specified topics
-//   - Include the ban reason and end date in the error message if access is forbidden
+// Behavior:
+// - Constructs a set from bannedTopics for efficient lookup.
+// - Iterates over claims.Bans and, for each ban whose name is present in that set, checks:
+//   - whether ban.TargetedNamespace matches claims.Namespace (case-insensitive), and
+//   - whether the current UTC time is before ban.EndDate (i.e. the ban is still active).
+//   - If both conditions are met, the filter returns a forbidden error (http.StatusForbidden) with a message
+//     indicating the ban type and its expiry time.
+//   - If no matching active ban is found, the filter returns nil and allows the request to proceed.
+//
+// The function evaluates ban expiry using time.Now().UTC() and formats the ban end date using RFC3339
+// in the returned error message.
+//
+// Note: This filter only covers bans that target the "game" namespace; bans in publisher/studio namespaces are not evaluated.
 func WithoutBannedTopics(bannedTopics []string) FilterOption {
 	return func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error {
 		if claims == nil || len(bannedTopics) == 0 {
@@ -435,14 +445,14 @@ func WithoutBannedTopics(bannedTopics []string) FilterOption {
 		}
 		bannedTopicMaps := map[string]bool{}
 		for _, v := range bannedTopics {
-			bannedTopicMaps[v] = true
+			bannedTopicMaps[strings.ToUpper(v)] = true
 		}
 
 		for _, b := range claims.Bans {
-			if _, ok := bannedTopicMaps[b.Ban]; !ok {
+			if _, ok := bannedTopicMaps[strings.ToUpper(b.Ban)]; !ok {
 				continue
 			}
-			if time.Now().UTC().Before(b.EndDate) {
+			if strings.EqualFold(b.TargetedNamespace, claims.Namespace) && time.Now().UTC().Before(b.EndDate) {
 				return respondError(http.StatusForbidden, ForbiddenAccess,
 					fmt.Sprintf("access forbidden: user is banned due to %s ban until %s", b.Ban, b.EndDate.Format(time.RFC3339)))
 			}
