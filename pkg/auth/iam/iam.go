@@ -23,6 +23,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/auth/util"
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/constant"
@@ -38,6 +39,9 @@ const (
 	accessTokenCookieKey = "access_token"
 	tokenFromCookie      = "cookie"
 	tokenFromHeader      = "header"
+
+	MatchmakingBanTopic = "MATCHMAKING"
+	ChatBanTopic        = "CHAT"
 )
 
 var DevStackTraceable bool
@@ -404,6 +408,54 @@ func WithValidScope(scope string) FilterOption {
 		if err != nil {
 			return respondError(http.StatusForbidden, InsufficientScope,
 				"access forbidden: "+insufficientScopeMessage)
+		}
+
+		return nil
+	}
+}
+
+// WithoutBannedTopics returns a FilterOption that enforces topic-specific bans found in a user's JWT claims.
+//
+// The returned FilterOption checks the provided claims for any active bans whose name appears in the
+// bannedTopics slice. If claims is nil or bannedTopics is empty the filter is a no-op and returns nil.
+//
+// Parameters:
+//   - bannedTopics: A slice of strings representing the topics to check for bans
+//
+// Returns:
+//   - FilterOption: A function that implements the ban checking logic
+//
+// Behavior:
+// - Constructs a set from bannedTopics for efficient lookup.
+// - Iterates over claims.Bans and, for each ban whose name is present in that set, checks:
+//   - whether ban.TargetedNamespace matches claims.Namespace (case-insensitive), and
+//   - whether the current UTC time is before ban.EndDate (i.e. the ban is still active).
+//   - If both conditions are met, the filter returns a forbidden error (http.StatusForbidden) with a message
+//     indicating the ban type and its expiry time.
+//   - If no matching active ban is found, the filter returns nil and allows the request to proceed.
+//
+// The function evaluates ban expiry using time.Now().UTC() and formats the ban end date using RFC3339
+// in the returned error message.
+//
+// Note: This filter only covers bans that target the "game" namespace; bans in publisher/studio namespaces are not evaluated.
+func WithoutBannedTopics(bannedTopics []string) FilterOption {
+	return func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error {
+		if claims == nil || len(bannedTopics) == 0 {
+			return nil
+		}
+		bannedTopicMaps := map[string]bool{}
+		for _, v := range bannedTopics {
+			bannedTopicMaps[strings.ToUpper(v)] = true
+		}
+
+		for _, b := range claims.Bans {
+			if _, ok := bannedTopicMaps[strings.ToUpper(b.Ban)]; !ok {
+				continue
+			}
+			if strings.EqualFold(b.TargetedNamespace, claims.Namespace) && time.Now().UTC().Before(b.EndDate) {
+				return respondError(http.StatusForbidden, ForbiddenAccess,
+					fmt.Sprintf("access forbidden: user is banned due to %s ban until %s", b.Ban, b.EndDate.Format(time.RFC3339)))
+			}
 		}
 
 		return nil

@@ -15,10 +15,12 @@
 package iam
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/constant"
 	"github.com/AccelByte/iam-go-sdk/v2"
@@ -1066,4 +1068,266 @@ func TestFilterInitializationOptionsFromEnv_SubdomainValidationExcludedNamespace
 
 	options = FilterInitializationOptionsFromEnv()
 	assert.Empty(t, options.SubdomainValidationExcludedNamespaces)
+}
+
+func TestWithoutBannedTopics(t *testing.T) {
+	timeNow := time.Now().UTC()
+	futureBanTime := timeNow.Add(24 * time.Hour)
+	pastBanTime := timeNow.Add(-24 * time.Hour)
+	gameNamespace, publisherNamespace := "game", "publisher"
+
+	testCases := []struct {
+		name         string
+		bannedTopics []string
+		claims       *iam.JWTClaims
+		wantErr      bool
+		errMessage   restful.ServiceError
+	}{
+		{
+			name:         "nil claims should pass",
+			bannedTopics: []string{ChatBanTopic, MatchmakingBanTopic},
+			claims:       nil,
+			wantErr:      false,
+		},
+		{
+			name:         "empty banned topics should pass",
+			bannedTopics: []string{},
+			claims: &iam.JWTClaims{
+				Namespace:      gameNamespace,
+				UnionNamespace: publisherNamespace,
+				Bans: []iam.JWTBan{
+					{Ban: ChatBanTopic, EndDate: futureBanTime, TargetedNamespace: gameNamespace},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:         "non-matching ban topic should pass",
+			bannedTopics: []string{MatchmakingBanTopic},
+			claims: &iam.JWTClaims{
+				Namespace:      gameNamespace,
+				UnionNamespace: publisherNamespace,
+				Bans: []iam.JWTBan{
+					{Ban: ChatBanTopic, EndDate: futureBanTime, TargetedNamespace: gameNamespace},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:         "expired ban should pass",
+			bannedTopics: []string{ChatBanTopic},
+			claims: &iam.JWTClaims{
+				Namespace:      gameNamespace,
+				UnionNamespace: publisherNamespace,
+				Bans: []iam.JWTBan{
+					{Ban: ChatBanTopic, EndDate: pastBanTime, TargetedNamespace: gameNamespace},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:         "active matching ban should fail",
+			bannedTopics: []string{MatchmakingBanTopic},
+			claims: &iam.JWTClaims{
+				Namespace:      gameNamespace,
+				UnionNamespace: publisherNamespace,
+				Bans: []iam.JWTBan{
+					{Ban: MatchmakingBanTopic, EndDate: futureBanTime, TargetedNamespace: gameNamespace},
+				},
+			},
+			wantErr: true,
+			errMessage: respondError(http.StatusForbidden, ForbiddenAccess,
+				fmt.Sprintf("access forbidden: user is banned due to %s ban until %s", MatchmakingBanTopic, futureBanTime.Format(time.RFC3339))),
+		},
+		{
+			name:         "multiple bans with one active matching should fail",
+			bannedTopics: []string{ChatBanTopic},
+			claims: &iam.JWTClaims{
+				Namespace:      gameNamespace,
+				UnionNamespace: publisherNamespace,
+				Bans: []iam.JWTBan{
+					{Ban: "OTHER", EndDate: futureBanTime, TargetedNamespace: gameNamespace},
+					{Ban: ChatBanTopic, EndDate: futureBanTime, TargetedNamespace: gameNamespace},
+				},
+			},
+			wantErr: true,
+			errMessage: respondError(http.StatusForbidden, ForbiddenAccess,
+				fmt.Sprintf("access forbidden: user is banned due to %s ban until %s", ChatBanTopic, futureBanTime.Format(time.RFC3339))),
+		},
+		{
+			name:         "active ban present, but bannedTopics does not match ban, should success",
+			bannedTopics: []string{ChatBanTopic},
+			claims: &iam.JWTClaims{
+				Namespace:      gameNamespace,
+				UnionNamespace: publisherNamespace,
+				Bans: []iam.JWTBan{
+					{Ban: MatchmakingBanTopic, EndDate: futureBanTime, TargetedNamespace: gameNamespace},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:         "active ban present, but bannedTopics is empty, should succeed",
+			bannedTopics: []string{""},
+			claims: &iam.JWTClaims{
+				Namespace:      gameNamespace,
+				UnionNamespace: publisherNamespace,
+				Bans: []iam.JWTBan{
+					{Ban: MatchmakingBanTopic, EndDate: futureBanTime, TargetedNamespace: gameNamespace},
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			filterOpt := WithoutBannedTopics(tc.bannedTopics)
+			err := filterOpt(&restful.Request{}, nil, tc.claims)
+
+			if tc.wantErr {
+				assert.Error(t, err)
+				svcErr, ok := err.(restful.ServiceError)
+				assert.True(t, ok)
+				assert.Equal(t, http.StatusForbidden, svcErr.Code)
+				assert.Equal(t, tc.errMessage.Message, svcErr.Message)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+// nolint:paralleltest
+func TestWithoutBannedTopics_TargetedNamespaceAndExpiry(t *testing.T) {
+	now := time.Now().UTC()
+	future := now.Add(24 * time.Hour)
+	// EndDate equal to now (not in future)
+	nowEnd := now
+
+	testCases := []struct {
+		name       string
+		claims     *iam.JWTClaims
+		banned     []string
+		wantErr    bool
+		wantErrMsg string
+	}{
+		{
+			name: "ban targets studio namespace -> allow chat on game namespace",
+			claims: &iam.JWTClaims{
+				Namespace:      "game",
+				UnionNamespace: "publisher",
+				Bans: []iam.JWTBan{
+					{Ban: ChatBanTopic, TargetedNamespace: "publisher", EndDate: future},
+				},
+			},
+			banned:  []string{ChatBanTopic},
+			wantErr: false,
+		},
+		{
+			name: "ban targets different namespace -> allow",
+			claims: &iam.JWTClaims{
+				Namespace:      "publisher",
+				UnionNamespace: "publisher",
+				Bans: []iam.JWTBan{
+					{Ban: ChatBanTopic, TargetedNamespace: "game", EndDate: future},
+				},
+			},
+			banned:  []string{ChatBanTopic},
+			wantErr: false,
+		},
+		{
+			name: "ban targets same namespace -> forbid",
+			claims: &iam.JWTClaims{
+				Namespace: "game",
+				Bans: []iam.JWTBan{
+					{Ban: ChatBanTopic, TargetedNamespace: "game", EndDate: future},
+				},
+			},
+			banned:  []string{ChatBanTopic},
+			wantErr: true,
+		},
+		{
+			name: "targeted namespace case-insensitive match -> forbid",
+			claims: &iam.JWTClaims{
+				Namespace: "game",
+				Bans: []iam.JWTBan{
+					{Ban: MatchmakingBanTopic, TargetedNamespace: "GAME", EndDate: future},
+				},
+			},
+			banned:  []string{MatchmakingBanTopic},
+			wantErr: true,
+		},
+		{
+			name: "ban end date equal to now -> allow (not before)",
+			claims: &iam.JWTClaims{
+				Namespace: "game",
+				Bans: []iam.JWTBan{
+					{Ban: ChatBanTopic, TargetedNamespace: "game", EndDate: nowEnd},
+				},
+			},
+			banned:  []string{ChatBanTopic},
+			wantErr: false,
+		},
+		{
+			name: "ban end date equal to now -> allow (not before)",
+			claims: &iam.JWTClaims{
+				Namespace: "game",
+				Bans: []iam.JWTBan{
+					{Ban: ChatBanTopic, TargetedNamespace: "game", EndDate: nowEnd},
+				},
+			},
+			banned:  []string{ChatBanTopic},
+			wantErr: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			opt := WithoutBannedTopics(tc.banned)
+			err := opt(&restful.Request{}, nil, tc.claims)
+			if tc.wantErr {
+				assert.Error(t, err)
+				svcErr, ok := err.(restful.ServiceError)
+				assert.True(t, ok)
+				assert.Equal(t, http.StatusForbidden, svcErr.Code)
+				// message should match respondError output for ForbiddenAccess
+				expected := respondError(http.StatusForbidden, ForbiddenAccess,
+					fmt.Sprintf("access forbidden: user is banned due to %s ban until %s", tc.claims.Bans[0].Ban, tc.claims.Bans[0].EndDate.Format(time.RFC3339)))
+				assert.Equal(t, expected.Message, svcErr.Message)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+// nolint:paralleltest
+func TestWithoutBannedTopics_BannedTopicCaseSensitivity(t *testing.T) {
+	now := time.Now().UTC().Add(24 * time.Hour)
+
+	claims := &iam.JWTClaims{
+		Namespace: "game",
+		Bans: []iam.JWTBan{
+			{Ban: ChatBanTopic, TargetedNamespace: "game", EndDate: now},
+		},
+	}
+
+	t.Run("bannedTopics lower-case should match uppercase ban", func(t *testing.T) {
+		opt := WithoutBannedTopics([]string{"chat"})
+		err := opt(&restful.Request{}, nil, claims)
+		assert.Error(t, err)
+		svcErr, ok := err.(restful.ServiceError)
+		assert.True(t, ok)
+		assert.Equal(t, http.StatusForbidden, svcErr.Code)
+	})
+
+	t.Run("bannedTopics pascalCase should match uppercase ban", func(t *testing.T) {
+		opt := WithoutBannedTopics([]string{"Chat"})
+		err := opt(&restful.Request{}, nil, claims)
+		assert.Error(t, err)
+		svcErr, ok := err.(restful.ServiceError)
+		assert.True(t, ok)
+		assert.Equal(t, http.StatusForbidden, svcErr.Code)
+	})
 }
