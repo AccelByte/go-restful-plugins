@@ -42,6 +42,12 @@ const (
 
 	MatchmakingBanTopic = "MATCHMAKING"
 	ChatBanTopic        = "CHAT"
+
+	//Packages
+	MultiplayerPackage = "multiplayer"
+	OnlinePackage      = "online"
+	FoundationsPackage = "foundations"
+	ExtendPackage      = "extend"
 )
 
 var DevStackTraceable bool
@@ -688,4 +694,37 @@ func ActionConverter(action int) string {
 		return ""
 	}
 	return ActionStr
+}
+
+// WithValidSubscription filters request from a user with verified subscription.
+// IsSubscribed checks if the user has the specified subscription.
+// If claims.Subscriptions is nil, it means there are no subscription restrictions and validation is skipped (returns true).
+// If claims.Subscriptions is an empty slice or the subscription is not found, validation will fail (return false).
+// If the subscription argument is an empty string, validation will fail and access will be forbidden.
+func WithValidSubscription(subscription string) FilterOption {
+	return func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error {
+		insufficientSubscriptionMessage := ErrorCodeMapping[InsufficientSubscription]
+		if DevStackTraceable {
+			insufficientSubscriptionMessage = fmt.Sprintf("%s. Required subscription: %s", insufficientSubscriptionMessage,
+				subscription)
+		}
+
+		// if claims.Subscriptions is nil, allow access and skip the subscription validation
+		if claims.Subscriptions == nil {
+			return nil
+		}
+
+		if subscription == "" {
+			return respondError(http.StatusForbidden, InsufficientSubscription,
+				"access forbidden: "+insufficientSubscriptionMessage)
+		}
+
+		// Only check IsSubscribed if subscription is not empty
+		if !iamClient.IsSubscribed(claims, subscription) {
+			return respondError(http.StatusForbidden, InsufficientSubscription,
+				"access forbidden: "+insufficientSubscriptionMessage)
+		}
+
+		return nil
+	}
 }

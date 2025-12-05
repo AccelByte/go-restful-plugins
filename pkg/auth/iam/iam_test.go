@@ -1,4 +1,4 @@
-// Copyright 2021 AccelByte Inc
+// Copyright 2021-2025 AccelByte Inc
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -1206,11 +1207,10 @@ func TestWithoutBannedTopics_TargetedNamespaceAndExpiry(t *testing.T) {
 	nowEnd := now
 
 	testCases := []struct {
-		name       string
-		claims     *iam.JWTClaims
-		banned     []string
-		wantErr    bool
-		wantErrMsg string
+		name    string
+		claims  *iam.JWTClaims
+		banned  []string
+		wantErr bool
 	}{
 		{
 			name: "ban targets studio namespace -> allow chat on game namespace",
@@ -1330,4 +1330,142 @@ func TestWithoutBannedTopics_BannedTopicCaseSensitivity(t *testing.T) {
 		assert.True(t, ok)
 		assert.Equal(t, http.StatusForbidden, svcErr.Code)
 	})
+}
+
+func TestWithValidSubscription_Success(t *testing.T) {
+	testCases := []struct {
+		name         string
+		subscription string
+		claims       *iam.JWTClaims
+		wantErr      bool
+		errMessage   restful.ServiceError
+	}{
+		{
+			name:         "success - nil package on token claims - no subscription required",
+			subscription: "",
+			claims: &iam.JWTClaims{
+				Subscriptions: nil,
+			},
+			wantErr: false,
+		},
+		{
+			name:         "success - empty package on token claims - no subscription required",
+			subscription: "",
+			claims:       &iam.JWTClaims{},
+			wantErr:      false,
+		},
+		{
+			name:         "success - has subscription",
+			subscription: MultiplayerPackage,
+			claims: &iam.JWTClaims{
+				Subscriptions: []string{FoundationsPackage, OnlinePackage, MultiplayerPackage, ExtendPackage},
+			},
+			wantErr: false,
+		},
+		{
+			name:         "success - has subscription - upper case",
+			subscription: strings.ToUpper(MultiplayerPackage),
+			claims: &iam.JWTClaims{
+				Subscriptions: []string{FoundationsPackage, OnlinePackage, MultiplayerPackage, ExtendPackage},
+			},
+			wantErr: false,
+		},
+		{
+			name:         "success - has subscription - snake case",
+			subscription: strings.ToTitle(MultiplayerPackage),
+			claims: &iam.JWTClaims{
+				Subscriptions: []string{FoundationsPackage, OnlinePackage, MultiplayerPackage, ExtendPackage},
+			},
+			wantErr: false,
+		},
+		{
+			name:         "success - has subscription - lower case",
+			subscription: strings.ToLower(MultiplayerPackage),
+			claims: &iam.JWTClaims{
+				Subscriptions: []string{FoundationsPackage, OnlinePackage, MultiplayerPackage, ExtendPackage},
+			},
+			wantErr: false,
+		},
+	}
+
+	for idx, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			filterOpt := WithValidSubscription(tc.subscription)
+			err := filterOpt(&restful.Request{}, iam.NewMockClient(), tc.claims)
+
+			if tc.wantErr {
+				assert.Error(t, err, fmt.Sprintf("%d - failed on test - %v", idx, tc.name))
+				svcErr, ok := err.(restful.ServiceError)
+				assert.True(t, ok)
+				assert.Equal(t, http.StatusForbidden, svcErr.Code)
+				assert.Contains(t, svcErr.Message, ErrorCodeMapping[InsufficientSubscription])
+			} else {
+				assert.NoError(t, err, fmt.Sprintf("%d - failed on test - %v", idx, tc.name))
+			}
+		})
+	}
+}
+
+func TestWithValidSubscription_Failed(t *testing.T) {
+	testCases := []struct {
+		name         string
+		subscription string
+		claims       *iam.JWTClaims
+		wantErr      bool
+		errMessage   restful.ServiceError
+	}{
+		{
+			name:         "failed - empty subscription check - claims has subscriptions",
+			subscription: "",
+			claims: &iam.JWTClaims{
+				Subscriptions: []string{FoundationsPackage, OnlinePackage},
+			},
+			wantErr: true,
+		},
+		{
+			name:         "failed - missing required package multiplayer",
+			subscription: MultiplayerPackage,
+			claims: &iam.JWTClaims{
+				Subscriptions: []string{FoundationsPackage, OnlinePackage},
+			},
+			wantErr: true,
+		},
+		{
+			name:         "failed - missing required package online",
+			subscription: OnlinePackage,
+			claims: &iam.JWTClaims{
+				Subscriptions: []string{FoundationsPackage, MultiplayerPackage},
+			},
+			wantErr: true,
+		},
+		{
+			name:         "failed - missing required package extend",
+			subscription: ExtendPackage,
+			claims: &iam.JWTClaims{
+				Subscriptions: []string{FoundationsPackage, MultiplayerPackage},
+			},
+			wantErr: true,
+		},
+	}
+
+	for idx, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			DevStackTraceable = true
+			filterOpt := WithValidSubscription(tc.subscription)
+			err := filterOpt(&restful.Request{}, iam.NewMockClient(), tc.claims)
+
+			if tc.wantErr {
+				assert.Error(t, err, fmt.Sprintf("%d - failed on test - %v", idx, tc.name))
+				svcErr, ok := err.(restful.ServiceError)
+				assert.True(t, ok)
+				assert.Equal(t, http.StatusForbidden, svcErr.Code)
+				assert.Contains(t, svcErr.Message, ErrorCodeMapping[InsufficientSubscription])
+				if tc.subscription != "" {
+					assert.Contains(t, svcErr.Message, tc.subscription)
+				}
+			} else {
+				assert.NoError(t, err, fmt.Sprintf("%d - failed on test - %v", idx, tc.name))
+			}
+		})
+	}
 }

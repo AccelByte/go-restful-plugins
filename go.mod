@@ -2,6 +2,8 @@ module github.com/AccelByte/go-restful-plugins/v4
 
 go 1.13
 
+replace github.com/AccelByte/iam-go-sdk/v2 => ../iam-go-sdk
+
 require (
 	github.com/AccelByte/go-jose v2.1.4+incompatible
 	github.com/AccelByte/iam-go-sdk/v2 v2.6.0
