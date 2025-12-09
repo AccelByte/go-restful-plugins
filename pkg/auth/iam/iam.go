@@ -704,20 +704,6 @@ func ActionConverter(action int) string {
 func WithValidSubscription(subscription string) FilterOption {
 	return func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error {
 		insufficientSubscriptionMessage := ErrorCodeMapping[InsufficientSubscription]
-		if DevStackTraceable {
-			insufficientSubscriptionMessage = fmt.Sprintf("%s. Required subscription: %s", insufficientSubscriptionMessage,
-				subscription)
-		}
-
-		// if claims.Subscriptions is nil, allow access and skip the subscription validation
-		if claims.Subscriptions == nil {
-			return nil
-		}
-
-		if subscription == "" {
-			return respondError(http.StatusForbidden, InsufficientSubscription,
-				"access forbidden: "+insufficientSubscriptionMessage)
-		}
 
 		// Only check IsSubscribed if subscription is not empty
 		if !iamClient.IsSubscribed(claims, subscription) {

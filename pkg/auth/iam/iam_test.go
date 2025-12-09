@@ -1460,9 +1460,6 @@ func TestWithValidSubscription_Failed(t *testing.T) {
 				assert.True(t, ok)
 				assert.Equal(t, http.StatusForbidden, svcErr.Code)
 				assert.Contains(t, svcErr.Message, ErrorCodeMapping[InsufficientSubscription])
-				if tc.subscription != "" {
-					assert.Contains(t, svcErr.Message, tc.subscription)
-				}
 			} else {
 				assert.NoError(t, err, fmt.Sprintf("%d - failed on test - %v", idx, tc.name))
 			}
