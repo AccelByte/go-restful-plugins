@@ -1,4 +1,4 @@
-// Copyright 2018 AccelByte Inc
+// Copyright 2018-2025 AccelByte Inc
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -703,10 +703,11 @@ func ActionConverter(action int) string {
 // If the subscription argument is an empty string, validation will fail and access will be forbidden.
 func WithValidSubscription(subscription string) FilterOption {
 	return func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error {
-		insufficientSubscriptionMessage := ErrorCodeMapping[InsufficientSubscription]
 
 		// Only check IsSubscribed if subscription is not empty
 		if !iamClient.IsSubscribed(claims, subscription) {
+			insufficientSubscriptionMessage := ErrorCodeMapping[InsufficientSubscription]
+
 			return respondError(http.StatusForbidden, InsufficientSubscription,
 				"access forbidden: "+insufficientSubscriptionMessage)
 		}
