@@ -1,4 +1,4 @@
-// Copyright 2018 AccelByte Inc
+// Copyright 2018-2025 AccelByte Inc
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,6 +42,12 @@ const (
 
 	MatchmakingBanTopic = "MATCHMAKING"
 	ChatBanTopic        = "CHAT"
+
+	//Packages
+	MultiplayerPackage = "multiplayer"
+	OnlinePackage      = "online"
+	FoundationsPackage = "foundations"
+	ExtendPackage      = "extend"
 )
 
 var DevStackTraceable bool
@@ -688,4 +694,24 @@ func ActionConverter(action int) string {
 		return ""
 	}
 	return ActionStr
+}
+
+// WithValidSubscription filters request from a user with verified subscription.
+// IsSubscribed checks if the user has the specified subscription.
+// If claims.Subscriptions is nil, it means there are no subscription restrictions and validation is skipped (returns true).
+// If claims.Subscriptions is an empty slice or the subscription is not found, validation will fail (return false).
+// If the subscription argument is an empty string, validation will fail and access will be forbidden.
+func WithValidSubscription(subscription string) FilterOption {
+	return func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error {
+
+		// Only check IsSubscribed if subscription is not empty
+		if !iamClient.IsSubscribed(claims, subscription) {
+			insufficientSubscriptionMessage := ErrorCodeMapping[InsufficientSubscription]
+
+			return respondError(http.StatusForbidden, InsufficientSubscription,
+				"access forbidden: "+insufficientSubscriptionMessage)
+		}
+
+		return nil
+	}
 }

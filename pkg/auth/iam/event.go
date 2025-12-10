@@ -46,6 +46,7 @@ const (
 	InvalidRefererHeader        = 20023
 	SubdomainMismatch           = 20030
 	UserBanned                  = 20040
+	InsufficientSubscription    = 20050
 )
 
 var ErrorCodeMapping = map[int]string{
@@ -66,4 +67,5 @@ var ErrorCodeMapping = map[int]string{
 	SubdomainMismatch:           "subdomain mismatch",
 	TokenIsExpired:              "token is expired",
 	UserBanned:                  "user banned",
+	InsufficientSubscription:    "insufficient subscription",
 }
