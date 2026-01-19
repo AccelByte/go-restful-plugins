@@ -706,10 +706,8 @@ func WithValidSubscription(subscription string) FilterOption {
 
 		// Only check IsSubscribed if subscription is not empty
 		if !iamClient.IsSubscribed(claims, subscription) {
-			insufficientSubscriptionMessage := ErrorCodeMapping[InsufficientSubscription]
-
 			return respondError(http.StatusForbidden, InsufficientSubscription,
-				"access forbidden: "+insufficientSubscriptionMessage)
+				"access forbidden: "+ErrorCodeMapping[InsufficientSubscription]+", required subscription: "+subscription+", owned subscription(s): "+strings.Join(claims.Subscriptions, ","))
 		}
 
 		return nil
