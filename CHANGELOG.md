@@ -1,3 +1,16 @@
+Release v3.3.0 (2026-03-06)
+==================
+- `pkg/cors`: Add namespace-scoped dynamic CORS configuration fetched from justice-config-service
+  - Namespace resolved from request via path parameter → subdomain → `x-ab-rl-ns` header
+  - Merge namespace config with service-level defaults (list fields deduplicated, scalar fields namespace-wins)
+  - Wildcard domain pattern support (`https://*.example.io`) in `AllowedDomains`
+  - New constructor for explicit initialization:
+    `NewCrossOriginResourceSharing(configServiceURL, iamClient, allowedDomains, allowedMethods, allowedHeaders, exposeHeaders, cookiesAllowed, maxAge)`
+    - `configServiceURL`: base URL of justice-config-service; set empty string to disable dynamic config
+    - `iamClient`: `iam.Client` from `github.com/AccelByte/iam-go-sdk/v2` for bearer-token auth to config-service; pass `nil` to disable auth
+  - **Breaking prerequisite for dynamic config**: the IAM client must hold permission
+    `[READ] "ADMIN:NAMESPACE:{namespace}:CONFIG:COMMON"` to call justice-config-service for namespace CORS config
+
 Release v3.2.0 (2022-03-29)
 ===========================
 - Add filter to match the subdomain to the namespace in the user token
