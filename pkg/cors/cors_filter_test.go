@@ -51,79 +51,144 @@ func createDummyFilterChain() *restful.FilterChain {
 }
 
 func TestIsOriginAllowed(t *testing.T) {
+	c := CrossOriginResourceSharing{}
+
 	// TEST 1: Single allowed domain
-	cors := CrossOriginResourceSharing{
-		AllowedDomains: []string{"https://www.example.io"},
-	}
-	assert.True(t, cors.isOriginAllowed("https://www.example.io"))
-	assert.False(t, cors.isOriginAllowed("https://www.example.com"))
-	assert.False(t, cors.isOriginAllowed("https://www.example.io.something"))
-	assert.False(t, cors.isOriginAllowed("https://www.example.io.something.io"))
+	config1 := &MergedCORSConfig{AllowedDomains: []string{"https://www.example.io"}}
+	assert.True(t, c.isOriginAllowedWithConfig(config1, "https://www.example.io"))
+	assert.False(t, c.isOriginAllowedWithConfig(config1, "https://www.example.com"))
+	assert.False(t, c.isOriginAllowedWithConfig(config1, "https://www.example.io.something"))
+	assert.False(t, c.isOriginAllowedWithConfig(config1, "https://www.example.io.something.io"))
 
 	// TEST 2: IP domain
-	corsWithIPDomain := CrossOriginResourceSharing{
-		AllowedDomains: []string{"127.0.0.1"},
-	}
-	assert.True(t, corsWithIPDomain.isOriginAllowed("127.0.0.1"))
-	assert.False(t, corsWithIPDomain.isOriginAllowed("127.0.0.2"))
-	assert.False(t, corsWithIPDomain.isOriginAllowed("127.0.0.1.1"))
-	assert.False(t, corsWithIPDomain.isOriginAllowed("https://www.example.io"))
-	assert.False(t, corsWithIPDomain.isOriginAllowed("https://www.example.com"))
-	assert.False(t, corsWithIPDomain.isOriginAllowed("https://www.example.io.something"))
-	assert.False(t, corsWithIPDomain.isOriginAllowed("https://www.example.io.something.io"))
+	config2 := &MergedCORSConfig{AllowedDomains: []string{"127.0.0.1"}}
+	assert.True(t, c.isOriginAllowedWithConfig(config2, "127.0.0.1"))
+	assert.False(t, c.isOriginAllowedWithConfig(config2, "127.0.0.2"))
+	assert.False(t, c.isOriginAllowedWithConfig(config2, "127.0.0.1.1"))
+	assert.False(t, c.isOriginAllowedWithConfig(config2, "https://www.example.io"))
+	assert.False(t, c.isOriginAllowedWithConfig(config2, "https://www.example.com"))
+	assert.False(t, c.isOriginAllowedWithConfig(config2, "https://www.example.io.something"))
+	assert.False(t, c.isOriginAllowedWithConfig(config2, "https://www.example.io.something.io"))
 
 	// TEST 3: Multiple allowed domains
-	corsWithMultipleAllowedDomain := CrossOriginResourceSharing{
-		AllowedDomains: []string{"https://www.example.io", "https://www.example.com", "127.0.0.1"},
-	}
-	assert.True(t, corsWithMultipleAllowedDomain.isOriginAllowed("https://www.example.io"))
-	assert.True(t, corsWithMultipleAllowedDomain.isOriginAllowed("https://www.example.com"))
-	assert.True(t, corsWithMultipleAllowedDomain.isOriginAllowed("127.0.0.1"))
-	assert.False(t, corsWithMultipleAllowedDomain.isOriginAllowed("https://www.example.io.something"))
-	assert.False(t, corsWithMultipleAllowedDomain.isOriginAllowed("https://www.example.io.something.io"))
+	config3 := &MergedCORSConfig{AllowedDomains: []string{"https://www.example.io", "https://www.example.com", "127.0.0.1"}}
+	assert.True(t, c.isOriginAllowedWithConfig(config3, "https://www.example.io"))
+	assert.True(t, c.isOriginAllowedWithConfig(config3, "https://www.example.com"))
+	assert.True(t, c.isOriginAllowedWithConfig(config3, "127.0.0.1"))
+	assert.False(t, c.isOriginAllowedWithConfig(config3, "https://www.example.io.something"))
+	assert.False(t, c.isOriginAllowedWithConfig(config3, "https://www.example.io.something.io"))
 
 	// TEST 4: Allowed domain is wildcard
-	corsWithWildcardAllowedDomain := CrossOriginResourceSharing{
-		AllowedDomains: []string{"*"},
-	}
-	assert.True(t, corsWithWildcardAllowedDomain.isOriginAllowed("https://www.example.io"))
-	assert.True(t, corsWithWildcardAllowedDomain.isOriginAllowed("https://www.example.com"))
-	assert.True(t, corsWithWildcardAllowedDomain.isOriginAllowed("https://www.example.io.something"))
-	assert.True(t, corsWithWildcardAllowedDomain.isOriginAllowed("https://www.example.io.something.io"))
+	config4 := &MergedCORSConfig{AllowedDomains: []string{"*"}}
+	assert.True(t, c.isOriginAllowedWithConfig(config4, "https://www.example.io"))
+	assert.True(t, c.isOriginAllowedWithConfig(config4, "https://www.example.com"))
+	assert.True(t, c.isOriginAllowedWithConfig(config4, "https://www.example.io.something"))
+	assert.True(t, c.isOriginAllowedWithConfig(config4, "https://www.example.io.something.io"))
 
 	// TEST 5: Allowed domains with regex
-	corsWithRegex := CrossOriginResourceSharing{
-		AllowedDomains: []string{"re:https://([a-z0-9]+[.])*example.io$", "https://www.example.com"},
+	config5 := &MergedCORSConfig{AllowedDomains: []string{"re:https://([a-z0-9]+[.])*example.io$", "https://www.example.com"}}
+	assert.True(t, c.isOriginAllowedWithConfig(config5, "https://www.example.io"))
+	assert.True(t, c.isOriginAllowedWithConfig(config5, "https://subdomain.example.io"))
+	assert.True(t, c.isOriginAllowedWithConfig(config5, "https://www.example.com"))
+	assert.False(t, c.isOriginAllowedWithConfig(config5, "https://subdomain.example.com"))
+	assert.False(t, c.isOriginAllowedWithConfig(config5, "https://www.example.net"))
+	assert.False(t, c.isOriginAllowedWithConfig(config5, "https://subdomain.example.io.something"))
+	assert.False(t, c.isOriginAllowedWithConfig(config5, "https://www.example.io.something.io"))
+
+	// TEST 6: Allowed domain with wildcard pattern (e.g. https://*.example.io)
+	config6 := &MergedCORSConfig{AllowedDomains: []string{"https://*.example.io"}}
+	assert.True(t, c.isOriginAllowedWithConfig(config6, "https://subdomain.example.io"))
+	assert.True(t, c.isOriginAllowedWithConfig(config6, "https://game-ns.example.io"))
+	assert.False(t, c.isOriginAllowedWithConfig(config6, "https://example.io"))           // no subdomain
+	assert.False(t, c.isOriginAllowedWithConfig(config6, "https://a.b.example.io"))       // two-level subdomain
+	assert.False(t, c.isOriginAllowedWithConfig(config6, "https://subdomain.example.com")) // wrong TLD
+	assert.False(t, c.isOriginAllowedWithConfig(config6, "http://subdomain.example.io"))   // wrong scheme
+}
+
+func TestFilter_ActualRequest_WildcardDomain(t *testing.T) {
+	cors := CrossOriginResourceSharing{
+		AllowedDomains: []string{"https://*.example.io"},
+		AllowedMethods: []string{"GET"},
+		AllowedHeaders: []string{"Content-Type"},
+		CookiesAllowed: true,
 	}
-	assert.True(t, corsWithRegex.isOriginAllowed("https://www.example.io"))
-	assert.True(t, corsWithRegex.isOriginAllowed("https://subdomain.example.io"))
-	assert.True(t, corsWithRegex.isOriginAllowed("https://www.example.com"))
-	assert.False(t, corsWithRegex.isOriginAllowed("https://subdomain.example.com"))
-	assert.False(t, corsWithRegex.isOriginAllowed("https://www.example.net"))
-	assert.False(t, corsWithRegex.isOriginAllowed("https://subdomain.example.io.something"))
-	assert.False(t, corsWithRegex.isOriginAllowed("https://www.example.io.something.io"))
+	filterChain := createDummyFilterChain()
+
+	// Matching subdomain — should be allowed
+	req1 := createDummyRequest()
+	req1.Request.Header.Set("Origin", "https://game-ns.example.io")
+	req1.Request.Method = "GET"
+	resp1 := createDummyResponse()
+	cors.Filter(req1, resp1, filterChain)
+	assert.Equal(t, "https://game-ns.example.io", resp1.Header().Get("Access-Control-Allow-Origin"))
+
+	// Base domain without subdomain — should be denied
+	req2 := createDummyRequest()
+	req2.Request.Header.Set("Origin", "https://example.io")
+	req2.Request.Method = "GET"
+	resp2 := createDummyResponse()
+	cors.Filter(req2, resp2, filterChain)
+	assert.Empty(t, resp2.Header().Get("Access-Control-Allow-Origin"))
+
+	// Wrong domain — should be denied
+	req3 := createDummyRequest()
+	req3.Request.Header.Set("Origin", "https://game-ns.other.io")
+	req3.Request.Method = "GET"
+	resp3 := createDummyResponse()
+	cors.Filter(req3, resp3, filterChain)
+	assert.Empty(t, resp3.Header().Get("Access-Control-Allow-Origin"))
+}
+
+func TestFilter_PreflightRequest_WildcardDomain(t *testing.T) {
+	cors := CrossOriginResourceSharing{
+		AllowedDomains: []string{"https://*.example.io"},
+		AllowedMethods: []string{"GET", "POST"},
+		AllowedHeaders: []string{"Content-Type"},
+		CookiesAllowed: true,
+		MaxAge:         3600,
+	}
+	filterChain := createDummyFilterChain()
+
+	// Matching subdomain preflight — should set CORS headers
+	req1 := createDummyRequest()
+	req1.Request.Header.Set("Origin", "https://game-ns.example.io")
+	req1.Request.Header.Set("Access-Control-Request-Method", "GET")
+	req1.Request.Header.Set("Access-Control-Request-Headers", "Content-Type")
+	req1.Request.Method = "OPTIONS"
+	resp1 := createDummyResponse()
+	cors.Filter(req1, resp1, filterChain)
+	assert.Equal(t, "https://game-ns.example.io", resp1.Header().Get("Access-Control-Allow-Origin"))
+	assert.NotEmpty(t, resp1.Header().Get("Access-Control-Allow-Methods"))
+
+	// Non-matching origin preflight — should not set CORS headers
+	req2 := createDummyRequest()
+	req2.Request.Header.Set("Origin", "https://example.io")
+	req2.Request.Header.Set("Access-Control-Request-Method", "GET")
+	req2.Request.Method = "OPTIONS"
+	resp2 := createDummyResponse()
+	cors.Filter(req2, resp2, filterChain)
+	assert.Empty(t, resp2.Header().Get("Access-Control-Allow-Origin"))
 }
 
 func TestIsValidAccessControlRequestMethod(t *testing.T) {
-	cors := CrossOriginResourceSharing{
-		AllowedMethods: []string{"GET", "POST"},
-	}
-	assert.True(t, cors.isValidAccessControlRequestMethod("GET"))
-	assert.True(t, cors.isValidAccessControlRequestMethod("POST"))
-	assert.False(t, cors.isValidAccessControlRequestMethod("DELETE"))
+	c := CrossOriginResourceSharing{}
+	config := &MergedCORSConfig{AllowedMethods: []string{"GET", "POST"}}
+	assert.True(t, c.isValidAccessControlRequestMethodWithConfig(config, "GET"))
+	assert.True(t, c.isValidAccessControlRequestMethodWithConfig(config, "POST"))
+	assert.False(t, c.isValidAccessControlRequestMethodWithConfig(config, "DELETE"))
 }
 
 func TestIsValidAccessControlRequestHeader(t *testing.T) {
-	cors := CrossOriginResourceSharing{
-		AllowedHeaders: []string{"Content-Type", "Accept", "Device-Id"},
-	}
-	assert.True(t, cors.isValidAccessControlRequestHeader("Content-Type"))
-	assert.True(t, cors.isValidAccessControlRequestHeader("Accept"))
-	assert.False(t, cors.isValidAccessControlRequestHeader("Something"))
+	c := CrossOriginResourceSharing{}
+	config := &MergedCORSConfig{AllowedHeaders: []string{"Content-Type", "Accept", "Device-Id"}}
+	assert.True(t, c.isValidAccessControlRequestHeaderWithConfig(config, "Content-Type"))
+	assert.True(t, c.isValidAccessControlRequestHeaderWithConfig(config, "Accept"))
+	assert.False(t, c.isValidAccessControlRequestHeaderWithConfig(config, "Something"))
 }
 
 func TestPreflightRequest(t *testing.T) {
-	cors := CrossOriginResourceSharing{
+	c := CrossOriginResourceSharing{}
+	config := &MergedCORSConfig{
 		AllowedMethods: []string{"GET", "POST"},
 		AllowedHeaders: []string{"Content-Type", "Accept", "Device-Id"},
 	}
@@ -133,7 +198,7 @@ func TestPreflightRequest(t *testing.T) {
 	req1.Request.Header.Set("Access-Control-Request-Method", "GET")
 	req1.Request.Header.Set("Access-Control-Request-Headers", "Content-Type,Accept")
 	resp1 := createDummyResponse()
-	cors.doPreflightRequest(req1, resp1)
+	c.doPreflightRequestWithConfig(req1, resp1, config)
 
 	assert.NotEmpty(t, resp1.Header().Get("Access-Control-Allow-Methods"))
 	assert.NotEmpty(t, resp1.Header().Get("Access-Control-Allow-Headers"))
@@ -145,7 +210,7 @@ func TestPreflightRequest(t *testing.T) {
 	req2.Request.Header.Set("Access-Control-Request-Method", "DELETE")
 	req2.Request.Header.Set("Access-Control-Request-Headers", "Content-Type,Accept")
 	resp2 := createDummyResponse()
-	cors.doPreflightRequest(req2, resp2)
+	c.doPreflightRequestWithConfig(req2, resp2, config)
 
 	assert.Empty(t, resp2.Header().Get("Access-Control-Allow-Methods"))
 	assert.Empty(t, resp2.Header().Get("Access-Control-Allow-Headers"))
@@ -155,14 +220,15 @@ func TestPreflightRequest(t *testing.T) {
 	req3.Request.Header.Set("Access-Control-Request-Method", "GET")
 	req3.Request.Header.Set("Access-Control-Request-Headers", "Something")
 	resp3 := createDummyResponse()
-	cors.doPreflightRequest(req3, resp3)
+	c.doPreflightRequestWithConfig(req3, resp3, config)
 
 	assert.Empty(t, resp3.Header().Get("Access-Control-Allow-Methods"))
 	assert.Empty(t, resp3.Header().Get("Access-Control-Allow-Headers"))
 }
 
 func TestPreflightRequest_MaxAgeConfigured(t *testing.T) {
-	corsWithMaxAge := CrossOriginResourceSharing{
+	c := CrossOriginResourceSharing{}
+	config := &MergedCORSConfig{
 		AllowedMethods: []string{"GET", "POST"},
 		AllowedHeaders: []string{"Content-Type", "Accept", "Device-Id"},
 		MaxAge:         3600,
@@ -174,7 +240,7 @@ func TestPreflightRequest_MaxAgeConfigured(t *testing.T) {
 	req1.Request.Header.Set("Access-Control-Request-Headers", "Content-Type,Accept")
 	resp1 := createDummyResponse()
 
-	corsWithMaxAge.doPreflightRequest(req1, resp1)
+	c.doPreflightRequestWithConfig(req1, resp1, config)
 
 	assert.NotEmpty(t, resp1.Header().Get("Access-Control-Allow-Methods"))
 	assert.NotEmpty(t, resp1.Header().Get("Access-Control-Allow-Headers"))
@@ -185,16 +251,16 @@ func TestPreflightRequest_MaxAgeConfigured(t *testing.T) {
 }
 
 func TestSetOptionHeaders(t *testing.T) {
-	cors := CrossOriginResourceSharing{
+	c := CrossOriginResourceSharing{}
+	config := &MergedCORSConfig{
 		ExposeHeaders:  []string{"Authorization", "AB-Session"},
 		CookiesAllowed: true,
 	}
 
-	// TEST 1: Success
 	req1 := createDummyRequest()
 	req1.Request.Header.Set("Origin", "https://www.example.io")
 	resp1 := createDummyResponse()
-	cors.setOptionsHeaders(req1, resp1)
+	c.setOptionsHeadersWithConfig(req1, resp1, config)
 
 	assert.NotEmpty(t, resp1.Header().Get("Access-Control-Allow-Origin"))
 	assert.NotEmpty(t, resp1.Header().Get("Access-Control-Expose-Headers"))

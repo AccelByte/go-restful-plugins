@@ -15,11 +15,14 @@
 package cors
 
 import (
-	"errors"
-	"regexp"
+	"context"
+	"fmt"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
+	iam "github.com/AccelByte/iam-go-sdk/v2"
 	"github.com/emicklei/go-restful/v3"
 	"github.com/sirupsen/logrus"
 )
@@ -39,32 +42,99 @@ type CrossOriginResourceSharing struct {
 	MaxAge         int      // number of seconds that indicates how long the results of a preflight request can be cached.
 	CookiesAllowed bool
 	Container      *restful.Container
+
+	// Dynamic CORS config support (optional - if ConfigServiceURL is set, dynamic config is enabled)
+	ConfigServiceURL   string        // Base URL of justice-config-service (e.g. "http://justice-config-service/config"). If empty, static config is used.
+	ConfigClient       ConfigClient  // Client for fetching namespace-scoped CORS config (set automatically from ConfigServiceURL on first request)
+	ConfigFetchTimeout time.Duration // Per-request timeout for config service calls (default 200ms)
+	IAMClient          iam.Client    // IAM client for obtaining bearer tokens to authenticate config service requests (optional)
+	PublisherNamespace string        // Publisher namespace used to fetch subdomain extraction settings (CORS_SUBDOMAIN config key)
+
+	// subdomain config is fetched lazily from the config service on first request and refreshed every subdomainConfigTTL
+	subdomainMu       sync.Mutex
+	subdomainConfig   *CORSSubdomainConfig
+	subdomainLoaded   bool
+	subdomainLoadedAt time.Time
 }
 
-const (
-	AllowedDomainsRegexPrefix = "re:"
-)
+// NewCrossOriginResourceSharing creates a new CORS filter with service-level default configuration.
+// Parameters:
+//   - configServiceURL: Base URL of justice-config-service (e.g. "http://justice-config-service/config").
+//     Set to empty string to disable dynamic config and use static config only.
+//   - iamClient: IAM client (iam.Client from iam-go-sdk/v2) for bearer-token authentication to config-service.
+//     Required when configServiceURL is non-empty; pass nil only when configServiceURL is empty.
+//   - publisherNamespace: Publisher namespace used to fetch subdomain extraction settings from the config service
+//     (CORS_SUBDOMAIN config key). Subdomain extraction is disabled when empty or when configServiceURL is empty.
+//   - allowedDomains: Service-level allowed origin domains (exact, wildcard, or re: regex patterns)
+//   - allowedMethods: Service-level allowed HTTP methods
+//   - allowedHeaders: Service-level allowed request headers
+//   - exposeHeaders: Service-level exposed response headers
+//   - cookiesAllowed: Whether credentials/cookies are allowed
+//   - maxAge: Max age for preflight cache in seconds
+func NewCrossOriginResourceSharing(
+	configServiceURL string,
+	iamClient iam.Client,
+	publisherNamespace string,
+	allowedDomains []string,
+	allowedMethods []string,
+	allowedHeaders []string,
+	exposeHeaders []string,
+	cookiesAllowed bool,
+	maxAge int,
+) (*CrossOriginResourceSharing, error) {
+	if configServiceURL != "" && iamClient == nil {
+		return nil, fmt.Errorf("cors: iamClient is required when configServiceURL is set")
+	}
+	return &CrossOriginResourceSharing{
+		ConfigServiceURL:   configServiceURL,
+		AllowedDomains:     allowedDomains,
+		AllowedMethods:     allowedMethods,
+		AllowedHeaders:     allowedHeaders,
+		ExposeHeaders:      exposeHeaders,
+		CookiesAllowed:     cookiesAllowed,
+		MaxAge:             maxAge,
+		IAMClient:          iamClient,
+		PublisherNamespace: publisherNamespace,
+	}, nil
+}
 
 // Filter is a filter function that implements the CORS flow
-func (c CrossOriginResourceSharing) Filter(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
+func (c *CrossOriginResourceSharing) Filter(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
 	origin := req.Request.Header.Get(restful.HEADER_Origin)
 	if len(origin) == 0 {
 		chain.ProcessFilter(req, resp)
 		return
 	}
-	if !c.isOriginAllowed(origin) { // check whether this origin is allowed
-		logrus.Debugf("HTTP Origin:%s is not part of %v", origin, c.AllowedDomains)
+
+	// Initialize config client on first request if not already set
+	if c.ConfigClient == nil {
+		c.initConfigServiceClient()
+	}
+
+	// Try to fetch dynamic config if ConfigClient is available
+	var config *MergedCORSConfig
+	if c.ConfigClient != nil {
+		config = c.getConfigWithDynamicResolution(req)
+	}
+
+	// Fall back to static config if dynamic resolution failed or is not available
+	if config == nil {
+		config = c.getStaticConfig()
+	}
+
+	if !c.isOriginAllowedWithConfig(config, origin) {
+		logrus.Debugf("HTTP Origin:%s is not part of %v", origin, config.AllowedDomains)
 		chain.ProcessFilter(req, resp)
 		return
 	}
 
 	if c.isPreflightRequest(req) {
-		c.doPreflightRequest(req, resp)
+		c.doPreflightRequestWithConfig(req, resp, config)
 		// return http 200 response, no body
 		return
 	}
 
-	c.setOptionsHeaders(req, resp)
+	c.setOptionsHeadersWithConfig(req, resp, config)
 	chain.ProcessFilter(req, resp)
 }
 
@@ -78,86 +148,188 @@ func (c *CrossOriginResourceSharing) isPreflightRequest(req *restful.Request) bo
 	return false
 }
 
-// doPreflightRequest will set the necessary preflight headers into response header,
-// e.g. Access-Control-Allow-Methods, Access-Control-Allow-Headers, Access-Control-Max-Age and all the default options headers (see setOptionsHeaders func)
-func (c *CrossOriginResourceSharing) doPreflightRequest(req *restful.Request, resp *restful.Response) {
-	acrm := req.Request.Header.Get(restful.HEADER_AccessControlRequestMethod)
-	if !c.isValidAccessControlRequestMethod(acrm) {
-		logrus.Debugf("Http header %s:%s is not in %v",
-			restful.HEADER_AccessControlRequestMethod,
-			acrm,
-			c.AllowedMethods)
+
+// initConfigServiceClient initializes the config service client from ConfigServiceURL.
+// If ConfigServiceURL is empty, dynamic config is disabled and static config is used.
+// IAMClient is required when ConfigServiceURL is set; initialization is skipped with an error log if missing.
+func (c *CrossOriginResourceSharing) initConfigServiceClient() {
+	if c.ConfigServiceURL == "" {
+		logrus.Debugf("ConfigServiceURL not set, CORS will use static configuration only")
 		return
 	}
-	acrhs := req.Request.Header.Get(restful.HEADER_AccessControlRequestHeaders)
-	if len(acrhs) > 0 {
-		for _, each := range strings.Split(acrhs, ",") {
-			if !c.isValidAccessControlRequestHeader(strings.Trim(each, " ")) {
-				logrus.Debugf("Http header %s:%s is not in %v",
-					restful.HEADER_AccessControlRequestHeaders,
-					acrhs,
-					c.AllowedHeaders)
-				return
-			}
-		}
-	}
-	resp.AddHeader(restful.HEADER_AccessControlAllowMethods, strings.Join(c.AllowedMethods, ","))
-	resp.AddHeader(restful.HEADER_AccessControlAllowHeaders, acrhs)
 
-	if c.MaxAge > 0 {
-		resp.AddHeader(restful.HEADER_AccessControlMaxAge, strconv.Itoa(c.MaxAge))
+	if c.IAMClient == nil {
+		logrus.Errorf("cors: ConfigServiceURL is set but IAMClient is nil; " +
+			"dynamic CORS config requires an IAM client — falling back to static config")
+		return
 	}
 
-	c.setOptionsHeaders(req, resp)
+	c.ConfigClient = NewConfigClientWithIAM(c.ConfigServiceURL, 1*time.Minute, c.IAMClient, TransportConfig{})
+	logrus.Infof("Initialized CORS config service client with URL: %s", c.ConfigServiceURL)
 }
 
-// setOptionsHeaders will set option headers into response header,
-// e.g. Access-Control-Allow-Origin, Access-Control-Expose-Headers, Access-Control-Allow-Credentials
-func (c CrossOriginResourceSharing) setOptionsHeaders(req *restful.Request, resp *restful.Response) {
-	origin := req.Request.Header.Get(restful.HEADER_Origin)
-	resp.AddHeader(restful.HEADER_AccessControlAllowOrigin, origin)
-
-	// some reference said that "Access-Control-Expose-Headers" should only be set for Actual request's response header (not Preflight request),
-	// but we're keep it here to follow the current implementation from go-restful.
-	if len(c.ExposeHeaders) > 0 {
-		resp.AddHeader(restful.HEADER_AccessControlExposeHeaders, strings.Join(c.ExposeHeaders, ","))
-	}
-
-	if c.CookiesAllowed {
-		resp.AddHeader(restful.HEADER_AccessControlAllowCredentials, "true")
+// getStaticConfig returns a MergedCORSConfig from the service-level static configuration.
+func (c *CrossOriginResourceSharing) getStaticConfig() *MergedCORSConfig {
+	return &MergedCORSConfig{
+		AllowedDomains: c.AllowedDomains,
+		AllowedHeaders: c.AllowedHeaders,
+		AllowedMethods: c.AllowedMethods,
+		ExposeHeaders:  c.ExposeHeaders,
+		CookiesAllowed: c.CookiesAllowed,
+		MaxAge:         c.MaxAge,
 	}
 }
 
-// isOriginAllowed will check if origin is allowed
-func (c CrossOriginResourceSharing) isOriginAllowed(origin string) bool {
+// subdomainConfigTTL is the duration for which the fetched subdomain config is considered fresh.
+const subdomainConfigTTL = time.Hour
+
+// loadSubdomainConfig fetches the subdomain settings from the publisher namespace config.
+// The result is cached for subdomainConfigTTL; on expiry the next request triggers a refresh.
+// On failure the existing cached value is kept and subdomainLoadedAt is not updated, so the
+// next request will retry immediately.
+func (c *CrossOriginResourceSharing) loadSubdomainConfig() {
+	if c.PublisherNamespace == "" {
+		return
+	}
+	c.subdomainMu.Lock()
+	defer c.subdomainMu.Unlock()
+	if c.subdomainLoaded && time.Since(c.subdomainLoadedAt) < subdomainConfigTTL {
+		return
+	}
+	cfg, err := c.ConfigClient.GetSubdomainConfig(c.PublisherNamespace)
+	if err != nil {
+		logrus.Errorf("cors: failed to fetch subdomain config for publisher namespace %q: %v", c.PublisherNamespace, err)
+		return
+	}
+	c.subdomainConfig = cfg // nil is valid: means no config, subdomain extraction disabled
+	c.subdomainLoaded = true
+	c.subdomainLoadedAt = time.Now()
+}
+
+// getSubdomainSettings returns the subdomain extraction settings from the cached publisher namespace config.
+func (c *CrossOriginResourceSharing) getSubdomainSettings() (enabled bool, baseDomain string) {
+	c.subdomainMu.Lock()
+	cfg := c.subdomainConfig
+	c.subdomainMu.Unlock()
+	if cfg == nil {
+		return false, ""
+	}
+	return cfg.SubdomainEnabled, cfg.SubdomainBaseDomain
+}
+
+// getConfigWithDynamicResolution attempts to fetch and merge namespace-scoped config with static config.
+// Returns nil if dynamic resolution fails (fallback to static config).
+func (c *CrossOriginResourceSharing) getConfigWithDynamicResolution(req *restful.Request) *MergedCORSConfig {
+	c.loadSubdomainConfig()
+	subdomainEnabled, baseDomain := c.getSubdomainSettings()
+	namespace := ExtractNamespace(req, subdomainEnabled, baseDomain)
+	if namespace == "" {
+		return nil
+	}
+
+	// Fetch namespace config with context timeout; fall back to 200ms if not set
+	timeout := c.ConfigFetchTimeout
+	if timeout <= 0 {
+		timeout = 200 * time.Millisecond
+	}
+	ctx, cancel := context.WithTimeout(req.Request.Context(), timeout)
+	defer cancel()
+
+	// Create a new request with the timeout context
+	ctxReq := req.Request.WithContext(ctx)
+	req.Request = ctxReq
+
+	namespaceConfig, err := c.ConfigClient.GetCORSConfig(namespace)
+	if err != nil {
+		logrus.Errorf("Failed to fetch CORS config for namespace %s: %v", namespace, err)
+		return nil
+	}
+
+	// Merge service and namespace configs
+	serviceConfig := &CORSConfigValue{
+		AllowedDomains: c.AllowedDomains,
+		AllowedHeaders: c.AllowedHeaders,
+		AllowedMethods: c.AllowedMethods,
+		ExposeHeaders:  c.ExposeHeaders,
+		CookiesAllowed: c.CookiesAllowed,
+		MaxAge:         c.MaxAge,
+	}
+
+	return MergeConfigs(serviceConfig, namespaceConfig)
+}
+
+// isOriginAllowedWithConfig checks if origin is allowed according to the provided config.
+func (c *CrossOriginResourceSharing) isOriginAllowedWithConfig(config *MergedCORSConfig, origin string) bool {
 	if len(origin) == 0 {
 		return false
 	}
-	if len(c.AllowedDomains) == 0 {
+	if len(config.AllowedDomains) == 0 {
 		return true
 	}
 
-	for _, domain := range c.AllowedDomains {
-		if domain == origin || domain == "*" {
-			return true
+	for _, domain := range config.AllowedDomains {
+		pm, err := Compile(domain)
+		if err != nil {
+			logrus.Debugf("Invalid CORS domain pattern %q: %v", domain, err)
+			continue
 		}
-		if strings.HasPrefix(domain, AllowedDomainsRegexPrefix) {
-			pattern, err := getPattern(domain)
-			if err != nil {
-				return false
-			}
-			if pattern.MatchString(origin) {
-				return true
-			}
+		if pm.MatchOrigin(origin) {
+			return true
 		}
 	}
 
 	return false
 }
 
-// isValidAccessControlRequestMethod will check if method is allowed
-func (c CrossOriginResourceSharing) isValidAccessControlRequestMethod(method string) bool {
-	for _, each := range c.AllowedMethods {
+// doPreflightRequestWithConfig handles preflight requests with the merged config.
+func (c *CrossOriginResourceSharing) doPreflightRequestWithConfig(req *restful.Request, resp *restful.Response, config *MergedCORSConfig) {
+	acrm := req.Request.Header.Get(restful.HEADER_AccessControlRequestMethod)
+	if !c.isValidAccessControlRequestMethodWithConfig(config, acrm) {
+		logrus.Debugf("Http header %s:%s is not in %v",
+			restful.HEADER_AccessControlRequestMethod,
+			acrm,
+			config.AllowedMethods)
+		return
+	}
+	acrhs := req.Request.Header.Get(restful.HEADER_AccessControlRequestHeaders)
+	if len(acrhs) > 0 {
+		for _, each := range strings.Split(acrhs, ",") {
+			if !c.isValidAccessControlRequestHeaderWithConfig(config, strings.Trim(each, " ")) {
+				logrus.Debugf("Http header %s:%s is not in %v",
+					restful.HEADER_AccessControlRequestHeaders,
+					acrhs,
+					config.AllowedHeaders)
+				return
+			}
+		}
+	}
+	resp.AddHeader(restful.HEADER_AccessControlAllowMethods, strings.Join(config.AllowedMethods, ","))
+	resp.AddHeader(restful.HEADER_AccessControlAllowHeaders, acrhs)
+
+	if config.MaxAge > 0 {
+		resp.AddHeader(restful.HEADER_AccessControlMaxAge, strconv.Itoa(config.MaxAge))
+	}
+
+	c.setOptionsHeadersWithConfig(req, resp, config)
+}
+
+// setOptionsHeadersWithConfig sets CORS response headers using the merged config.
+func (c *CrossOriginResourceSharing) setOptionsHeadersWithConfig(req *restful.Request, resp *restful.Response, config *MergedCORSConfig) {
+	origin := req.Request.Header.Get(restful.HEADER_Origin)
+	resp.AddHeader(restful.HEADER_AccessControlAllowOrigin, origin)
+
+	if len(config.ExposeHeaders) > 0 {
+		resp.AddHeader(restful.HEADER_AccessControlExposeHeaders, strings.Join(config.ExposeHeaders, ","))
+	}
+
+	if config.CookiesAllowed {
+		resp.AddHeader(restful.HEADER_AccessControlAllowCredentials, "true")
+	}
+}
+
+// isValidAccessControlRequestMethodWithConfig checks if method is allowed using the provided config.
+func (c *CrossOriginResourceSharing) isValidAccessControlRequestMethodWithConfig(config *MergedCORSConfig, method string) bool {
+	for _, each := range config.AllowedMethods {
 		if each == method {
 			return true
 		}
@@ -165,20 +337,12 @@ func (c CrossOriginResourceSharing) isValidAccessControlRequestMethod(method str
 	return false
 }
 
-// isValidAccessControlRequestHeader will check if header is allowed
-func (c CrossOriginResourceSharing) isValidAccessControlRequestHeader(header string) bool {
-	for _, each := range c.AllowedHeaders {
+// isValidAccessControlRequestHeaderWithConfig checks if header is allowed using the provided config.
+func (c *CrossOriginResourceSharing) isValidAccessControlRequestHeaderWithConfig(config *MergedCORSConfig, header string) bool {
+	for _, each := range config.AllowedHeaders {
 		if strings.ToLower(each) == strings.ToLower(header) {
 			return true
 		}
 	}
 	return false
-}
-
-func getPattern(str string) (*regexp.Regexp, error) {
-	split := strings.Split(str, AllowedDomainsRegexPrefix)
-	if len(split) < 2 {
-		return nil, errors.New("pattern not found")
-	}
-	return regexp.Compile(split[1])
 }
