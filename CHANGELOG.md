@@ -1,4 +1,4 @@
-Release v3.3.0 (2026-03-06)
+Release v4.28.0 (2026-04-15)
 ==================
 - `pkg/cors`: Add namespace-scoped dynamic CORS configuration fetched from justice-config-service
   - Namespace resolved from request via path parameter → subdomain → `x-ab-rl-ns` header
