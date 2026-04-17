@@ -15,6 +15,7 @@
 package cors
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -492,6 +493,53 @@ func TestNewCrossOriginResourceSharingMissingIAMClient(t *testing.T) {
 	}
 	if filter != nil {
 		t.Error("Filter should be nil on error")
+	}
+}
+
+// TestFilterDoesNotCancelRequestContext is a regression test for the bug where
+// getConfigWithDynamicResolution replaced req.Request with a context that was
+// immediately cancelled via defer cancel(), poisoning all downstream handlers.
+func TestFilterDoesNotCancelRequestContext(t *testing.T) {
+	mockClient := NewMockConfigClient()
+	mockClient.configs["game-ns"] = &CORSConfigValue{
+		AllowedDomains: []string{"https://game.example.com"},
+		AllowedMethods: []string{"GET"},
+	}
+
+	filter := &CrossOriginResourceSharing{
+		AllowedDomains:  []string{"https://service.com"},
+		AllowedMethods:  []string{"GET"},
+		ConfigClient:    mockClient,
+		subdomainConfig: &CORSSubdomainConfig{SubdomainEnabled: true},
+		subdomainLoaded: true,
+	}
+
+	var ctxAfterFilter context.Context
+	req := &restful.Request{
+		Request: &http.Request{
+			Method: "GET",
+			Header: http.Header{
+				"Origin": []string{"https://game.example.com"},
+			},
+			Host: "game-ns.example.com",
+		},
+	}
+
+	chain := &restful.FilterChain{
+		Filters: make([]restful.FilterFunction, 0),
+		Target: func(req *restful.Request, resp *restful.Response) {
+			ctxAfterFilter = req.Request.Context()
+		},
+	}
+	resp := &restful.Response{ResponseWriter: httptest.NewRecorder()}
+
+	filter.Filter(req, resp, chain)
+
+	if ctxAfterFilter == nil {
+		t.Fatal("chain was not called")
+	}
+	if err := ctxAfterFilter.Err(); err != nil {
+		t.Errorf("request context must not be cancelled after CORS filter: %v", err)
 	}
 }
 

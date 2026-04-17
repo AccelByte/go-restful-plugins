@@ -15,7 +15,6 @@
 package cors
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -226,18 +225,6 @@ func (c *CrossOriginResourceSharing) getConfigWithDynamicResolution(req *restful
 	if namespace == "" {
 		return nil
 	}
-
-	// Fetch namespace config with context timeout; fall back to 200ms if not set
-	timeout := c.ConfigFetchTimeout
-	if timeout <= 0 {
-		timeout = 200 * time.Millisecond
-	}
-	ctx, cancel := context.WithTimeout(req.Request.Context(), timeout)
-	defer cancel()
-
-	// Create a new request with the timeout context
-	ctxReq := req.Request.WithContext(ctx)
-	req.Request = ctxReq
 
 	namespaceConfig, err := c.ConfigClient.GetCORSConfig(namespace)
 	if err != nil {
