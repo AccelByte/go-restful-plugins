@@ -1,3 +1,14 @@
+Release v4.28.1 (2026-04-17)
+==================
+- `pkg/cors`: Fix CORS filter cancelling request context for downstream handlers
+  - `getConfigWithDynamicResolution` was replacing `req.Request` with a `context.WithTimeout`-wrapped
+    request and deferring `cancel()`, which cancelled the context the moment the function returned —
+    poisoning every downstream DB/cache/RPC call with `context canceled`
+  - `ConfigClient.GetCORSConfig` does not accept a `context.Context`, so the timeout context
+    was never forwarded to the actual fetch; the `req.Request` replacement served no purpose
+  - Fix: removed the timeout context block and `req.Request` replacement entirely
+  - Added regression test `TestFilterDoesNotCancelRequestContext`
+
 Release v4.28.0 (2026-04-15)
 ==================
 - `pkg/cors`: Add namespace-scoped dynamic CORS configuration fetched from justice-config-service
