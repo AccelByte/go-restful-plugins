@@ -1,3 +1,9 @@
+Release v4.28.2 (2026-06-23)
+==================
+- `pkg/auth/iam`, `pkg/auth/ic`: Fix case-insensitive Bearer scheme parsing per RFC 7235 §2.1
+  - `parseAccessToken` was rejecting `Authorization` headers with non-canonical casing (e.g. `bearer`, `BEARER`)
+  - Fix: prefix check now lowercases the header value before comparison; original token value is preserved
+
 Release v4.28.1 (2026-04-17)
 ==================
 - `pkg/cors`: Fix CORS filter cancelling request context for downstream handlers
