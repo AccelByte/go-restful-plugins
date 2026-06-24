@@ -496,6 +496,48 @@ func TestNewCrossOriginResourceSharingMissingIAMClient(t *testing.T) {
 	}
 }
 
+func TestGetConfigWithDynamicResolution_FallsBackToPublisherNamespace(t *testing.T) {
+	mockClient := NewMockConfigClient()
+	mockClient.configs["publisher"] = &CORSConfigValue{
+		AllowedDomains: []string{"https://publisher.example.com"},
+		AllowedMethods: []string{"GET", "POST"},
+	}
+
+	filter := &CrossOriginResourceSharing{
+		AllowedDomains:     []string{"https://service.com"},
+		AllowedMethods:     []string{"GET"},
+		ConfigClient:       mockClient,
+		PublisherNamespace: "publisher",
+		subdomainConfig:    &CORSSubdomainConfig{SubdomainEnabled: false},
+		subdomainLoaded:    true,
+	}
+
+	// Request with no namespace in path, subdomain, or header
+	req := &restful.Request{
+		Request: &http.Request{
+			Method: "GET",
+			Header: http.Header{
+				"Origin": []string{"https://publisher.example.com"},
+			},
+			Host: "example.com",
+		},
+	}
+
+	chainCalled := false
+	chain := createTestFilterChain(&chainCalled)
+	resp := &restful.Response{ResponseWriter: httptest.NewRecorder()}
+
+	filter.Filter(req, resp, chain)
+
+	if !chainCalled {
+		t.Error("FilterChain should be called when origin is allowed via publisher namespace config")
+	}
+	if resp.Header().Get("Access-Control-Allow-Origin") != "https://publisher.example.com" {
+		t.Errorf("Expected CORS allow header from publisher namespace config, got %q",
+			resp.Header().Get("Access-Control-Allow-Origin"))
+	}
+}
+
 // TestFilterDoesNotCancelRequestContext is a regression test for the bug where
 // getConfigWithDynamicResolution replaced req.Request with a context that was
 // immediately cancelled via defer cancel(), poisoning all downstream handlers.
