@@ -225,8 +225,8 @@ func WithPermission(permission *ic.Permission) FilterOption {
 // it will return the token value and token from.
 func parseAccessToken(request *restful.Request) (string, string, error) {
 	authorization := request.HeaderParameter("Authorization")
-	if strings.HasPrefix(authorization, "Bearer ") {
-		if token := strings.TrimPrefix(authorization, "Bearer "); token != "" {
+	if strings.HasPrefix(strings.ToLower(authorization), "bearer ") {
+		if token := authorization[len("bearer "):]; token != "" {
 			return token, tokenFromHeader, nil
 		}
 	}
