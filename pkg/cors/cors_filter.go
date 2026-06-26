@@ -147,7 +147,6 @@ func (c *CrossOriginResourceSharing) isPreflightRequest(req *restful.Request) bo
 	return false
 }
 
-
 // initConfigServiceClient initializes the config service client from ConfigServiceURL.
 // If ConfigServiceURL is empty, dynamic config is disabled and static config is used.
 // IAMClient is required when ConfigServiceURL is set; initialization is skipped with an error log if missing.
@@ -222,6 +221,9 @@ func (c *CrossOriginResourceSharing) getConfigWithDynamicResolution(req *restful
 	c.loadSubdomainConfig()
 	subdomainEnabled, baseDomain := c.getSubdomainSettings()
 	namespace := ExtractNamespace(req, subdomainEnabled, baseDomain)
+	if namespace == "" && c.PublisherNamespace != "" {
+		namespace = c.PublisherNamespace
+	}
 	if namespace == "" {
 		return nil
 	}
