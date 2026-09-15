@@ -34,6 +34,9 @@ const (
 	// includeParentConfigQueryParameter is the query parameter the config
 	// service reads to fold studio and publisher configs into its response.
 	includeParentConfigQueryParameter = "includeParentConfig"
+
+	// wantBearerToken is what iam.NewMockClient's ClientToken returns.
+	wantBearerToken = "Bearer mock_token"
 )
 
 // namespacedContainer builds a container wired the way a service serving
@@ -536,29 +539,45 @@ func TestPreflightThroughContainer_CallsRealConfigEndpoint(t *testing.T) {
 		t.Errorf("Access-Control-Allow-Origin = %q, want %q", got, namespaceOrigin)
 	}
 
-	var corsCall *recordedRequest
-	for i := range *recorded {
-		if (*recorded)[i].query.Get(includeParentConfigQueryParameter) != "" {
-			corsCall = &(*recorded)[i]
-		}
+	// The requests the client makes, pinned exactly: an extra query parameter
+	// or a dropped one must fail here, not pass silently.
+	corsCall := findRecorded(t, *recorded, "/v1/admin/namespaces/"+gameNamespace+"/configs/CORS")
+	if corsCall.method != http.MethodGet {
+		t.Errorf("CORS config method = %q, want GET", corsCall.method)
 	}
-	if corsCall == nil {
-		t.Fatalf("no CORS config request recorded, got %+v", *recorded)
+	if q := corsCall.query; len(q) != 1 || q.Get(includeParentConfigQueryParameter) != "studio,publisher" {
+		t.Errorf("CORS config query = %v, want only %s=studio,publisher",
+			q, includeParentConfigQueryParameter)
+	}
+	if corsCall.auth != wantBearerToken {
+		t.Errorf("CORS config Authorization = %q, want %q", corsCall.auth, wantBearerToken)
 	}
 
-	wantPath := "/v1/admin/namespaces/" + gameNamespace + "/configs/CORS"
-	if corsCall.path != wantPath {
-		t.Errorf("config service path = %q, want %q", corsCall.path, wantPath)
+	// Subdomain settings are read from the publisher namespace, with no query
+	// parameters at all.
+	subdomainCall := findRecorded(t, *recorded,
+		"/v1/admin/namespaces/"+publisherNamespace+"/configs/CORS_SUBDOMAIN")
+	if len(subdomainCall.query) != 0 {
+		t.Errorf("CORS_SUBDOMAIN query = %v, want none", subdomainCall.query)
 	}
-	if got := corsCall.query.Get(includeParentConfigQueryParameter); got != "studio,publisher" {
-		t.Errorf("includeParentConfig = %q, want %q", got, "studio,publisher")
+	if subdomainCall.auth != wantBearerToken {
+		t.Errorf("CORS_SUBDOMAIN Authorization = %q, want %q", subdomainCall.auth, wantBearerToken)
 	}
-	if corsCall.method != http.MethodGet {
-		t.Errorf("config service method = %q, want GET", corsCall.method)
+}
+
+// findRecorded returns the request the stub received for path, failing the test
+// when the client never made it.
+func findRecorded(t *testing.T, calls []recordedRequest, path string) recordedRequest {
+	t.Helper()
+
+	for _, call := range calls {
+		if call.path == path {
+			return call
+		}
 	}
-	if corsCall.auth != "Bearer mock_token" {
-		t.Errorf("Authorization = %q, want %q", corsCall.auth, "Bearer mock_token")
-	}
+	t.Fatalf("no request recorded for %q; recorded %+v", path, calls)
+
+	return recordedRequest{}
 }
 
 // TestPreflightThroughContainer_RefusedOriginGets405 pins the failure mode the
