@@ -256,3 +256,122 @@ func TestFilterPreflight_RefusesOriginMissingFromGameNamespaceConfig(t *testing.
 		t.Errorf("Refused preflight should carry no Access-Control-Allow-Origin, got %q", got)
 	}
 }
+
+// Namespaces come in several shapes across deployments: a studio namespace is
+// often a bare id, and a game namespace under it is that id with a suffix.
+// Both must survive resolution intact.
+const (
+	studioNamespace   = "12345"
+	gameUnderStudioNS = "12345-67890"
+)
+
+// TestNamespaceFromPath_EndpointShapes covers the namespace-scoped path layouts
+// services actually register: with and without a version segment, and with the
+// namespace followed by further path segments.
+func TestNamespaceFromPath_EndpointShapes(t *testing.T) {
+	cases := []struct {
+		path string
+		want string
+	}{
+		{"/configmigration/admin/namespaces/" + studioNamespace + "/export/rules", studioNamespace},
+		{"/cloudsave/v1/namespaces/" + gameUnderStudioNS + "/tags", gameUnderStudioNS},
+		{"/config/v1/admin/namespaces/" + gameUnderStudioNS + "/configs/CORS", gameUnderStudioNS},
+		{"/iam/v3/public/namespaces/" + studioNamespace + "/users/me", studioNamespace},
+	}
+
+	for _, tc := range cases {
+		if got := namespaceFromPath(tc.path); got != tc.want {
+			t.Errorf("namespaceFromPath(%q) = %q, want %q", tc.path, got, tc.want)
+		}
+	}
+}
+
+// TestExtractNamespace_SubdomainOnCustomBaseDomain covers deployments that
+// serve namespaces as subdomains of their own domain rather than an AccelByte
+// one, with a path that names no namespace so the subdomain is the only source.
+func TestExtractNamespace_SubdomainOnCustomBaseDomain(t *testing.T) {
+	const baseDomain = "gamingservices.example.net"
+
+	cases := []struct {
+		name          string
+		host          string
+		configuredFor string
+		want          string
+	}{
+		{"game namespace subdomain", gameUnderStudioNS + "." + baseDomain, baseDomain, gameUnderStudioNS},
+		{"studio namespace subdomain", studioNamespace + "." + baseDomain, baseDomain, studioNamespace},
+		{"no base domain configured", studioNamespace + "." + baseDomain, "", studioNamespace},
+		// The guard that stops third-party hosts from being read as namespaces
+		// also silently disables extraction when the configured suffix does not
+		// match the deployment's own domain.
+		{"configured suffix does not match the host", studioNamespace + "." + baseDomain, "accelbyte.io", ""},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := preflightRequest("/cloudsave/v1/tags", "https://example.com", tc.host)
+
+			got := ExtractNamespaceWithContainer(req, nil, true, tc.configuredFor)
+			if got != tc.want {
+				t.Errorf("host %q with base domain %q resolved to %q, want %q",
+					tc.host, tc.configuredFor, got, tc.want)
+			}
+		})
+	}
+}
+
+// recordingConfigClient captures which namespace the filter asked about.
+type recordingConfigClient struct {
+	asked   []string
+	configs map[string]*CORSConfigValue
+}
+
+func (r *recordingConfigClient) GetCORSConfig(namespace string) (*CORSConfigValue, error) {
+	r.asked = append(r.asked, namespace)
+
+	return r.configs[namespace], nil
+}
+
+func (r *recordingConfigClient) GetSubdomainConfig(_ string) (*CORSSubdomainConfig, error) {
+	return &CORSSubdomainConfig{SubdomainEnabled: false}, nil
+}
+
+// TestFilterPreflight_QueriesNamespaceFromRequest states the contract directly:
+// the config lookup for a preflight must use the namespace the request targets,
+// falling back to the publisher only when the request names none.
+func TestFilterPreflight_QueriesNamespaceFromRequest(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		want string
+	}{
+		{"namespace in the path", "/cloudsave/v1/namespaces/" + gameUnderStudioNS + "/tags", gameUnderStudioNS},
+		{"namespace in the path, admin route", "/configmigration/admin/namespaces/" + studioNamespace + "/export/rules", studioNamespace},
+		{"no namespace in the path", "/cloudsave/v1/tags", "publisher"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			client := &recordingConfigClient{configs: map[string]*CORSConfigValue{}}
+			filter := &CrossOriginResourceSharing{
+				AllowedMethods:     []string{http.MethodGet},
+				ConfigClient:       client,
+				PublisherNamespace: "publisher",
+				subdomainConfig:    &CORSSubdomainConfig{SubdomainEnabled: false},
+				subdomainLoaded:    true,
+			}
+
+			req := preflightRequest(tc.path, "https://example.com", "api.example.net")
+			resp := &restful.Response{ResponseWriter: httptest.NewRecorder()}
+			chainCalled := false
+			filter.Filter(req, resp, createTestFilterChain(&chainCalled))
+
+			if len(client.asked) != 1 {
+				t.Fatalf("expected exactly one config lookup, got %v", client.asked)
+			}
+			if client.asked[0] != tc.want {
+				t.Errorf("config lookup used namespace %q, want %q", client.asked[0], tc.want)
+			}
+		})
+	}
+}
