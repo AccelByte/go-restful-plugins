@@ -132,11 +132,11 @@ func extractPreflightNamespace(req *restful.Request, container *restful.Containe
 	return namespaceFromPath(req.Request.URL.Path)
 }
 
-// namespaceFromRoute selects the route the preflight is asking about and
-// extracts its namespace path parameter. It uses CurlyRouter because that is
-// the router restful.NewContainer installs; a container using RouterJSR311
-// falls through to namespaceFromPath, since the container keeps its router
-// private.
+// namespaceFromRoute selects the route the preflight is asking about and reads
+// the namespace parameter out of that route's path template. It uses
+// CurlyRouter because that is the router restful.NewContainer installs; a
+// container reconfigured with RouterJSR311 falls through to namespaceFromPath,
+// since the container keeps its router private.
 func namespaceFromRoute(httpReq *http.Request, method string, container *restful.Container) string {
 	if container == nil {
 		return ""
@@ -151,12 +151,61 @@ func namespaceFromRoute(httpReq *http.Request, method string, container *restful
 	probe := *httpReq
 	probe.Method = method
 
-	ws, route, err := restful.CurlyRouter{}.SelectRoute(webServices, &probe)
-	if err != nil || ws == nil || route == nil {
+	_, route, err := restful.CurlyRouter{}.SelectRoute(webServices, &probe)
+	if err != nil || route == nil {
 		return ""
 	}
 
-	return restful.RouterJSR311{}.ExtractParameters(route, ws, probe.URL.Path)[namespacePathParameter]
+	return namespaceFromRouteTemplate(route.Path, probe.URL.Path)
+}
+
+// namespaceFromRouteTemplate returns the URL segment that the route's path
+// template marks as the namespace parameter. Route.Path is the WebService root
+// path joined with the route's own path, so a {namespace} declared on either
+// one is covered.
+//
+// This walks the template rather than calling RouterJSR311.ExtractParameters,
+// which indexes the result of a regexp match without checking that it matched:
+//
+//	webServiceMatches := webServiceExpr.Matcher.FindStringSubmatch(urlPath)
+//	... FindStringSubmatch(webServiceMatches[len(webServiceMatches)-1])
+//
+// A nil match there is an index-out-of-range. CurlyRouter selects routes by
+// token score while that helper re-matches using the JSR311 path expressions,
+// so the two need not agree. Every crafted path in the tests makes SelectRoute
+// fail before the helper is reached, so this is a hazard rather than a
+// demonstrated bug — but walking the template removes the dependency on two
+// routers agreeing, and keeps resolution total for any input.
+func namespaceFromRouteTemplate(routePath, urlPath string) string {
+	routeTokens := strings.Split(strings.Trim(routePath, "/"), "/")
+	urlTokens := strings.Split(strings.Trim(urlPath, "/"), "/")
+
+	for i, token := range routeTokens {
+		if i >= len(urlTokens) {
+			return ""
+		}
+		if pathParameterName(token) == namespacePathParameter {
+			return urlTokens[i]
+		}
+	}
+
+	return ""
+}
+
+// pathParameterName returns the parameter name of a go-restful path token, or
+// empty string for a static one. A token may carry a regular expression, as in
+// "{namespace:[a-z0-9-]+}".
+func pathParameterName(token string) string {
+	if !strings.HasPrefix(token, "{") || !strings.HasSuffix(token, "}") {
+		return ""
+	}
+
+	name := token[1 : len(token)-1]
+	if colon := strings.Index(name, ":"); colon != -1 {
+		name = name[:colon]
+	}
+
+	return strings.TrimSpace(name)
 }
 
 // namespaceFromPath returns the segment following "namespaces" in urlPath, the

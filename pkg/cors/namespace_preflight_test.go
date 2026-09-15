@@ -15,27 +15,79 @@
 package cors
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
+	iam "github.com/AccelByte/iam-go-sdk/v2"
 	"github.com/emicklei/go-restful/v3"
 )
 
-const gameNamespace = "accelbytetesting"
+const (
+	gameNamespace      = "accelbytetesting"
+	publisherNamespace = "publisher"
+	serviceOrigin      = "https://service.example.net"
 
-// namespacedContainer builds a container with the route shape of a
-// namespace-scoped AGS endpoint, here justice-config-service's
-// /config/v1/admin/namespaces/{namespace}/configs.
+	// includeParentConfigQueryParameter is the query parameter the config
+	// service reads to fold studio and publisher configs into its response.
+	includeParentConfigQueryParameter = "includeParentConfig"
+)
+
+// namespacedContainer builds a container wired the way a service serving
+// namespace-scoped endpoints wires it. This mirrors justice-config-service
+// (pkg/configservice/api/api-declaration.go): the dynamic CORS filter is
+// installed as a container filter with Container set, no OPTIONSFilter follows
+// it, and {namespace} is declared on the WebService root path rather than on
+// the route — so route-based resolution has to cope with a parameter that is
+// not part of the route's own path.
 func namespacedContainer() *restful.Container {
-	c := restful.NewContainer()
-	ws := new(restful.WebService).Path("/config/v1/admin")
-	ws.Route(ws.GET("/namespaces/{namespace}/configs").
-		To(func(_ *restful.Request, _ *restful.Response) {}))
-	c.Add(ws)
+	c, _ := namespacedContainerWithConfigService("", nil)
 
 	return c
+}
+
+// namespacedContainerWithConfigService also returns the filter, and points it
+// at a config service when configServiceURL is set.
+func namespacedContainerWithConfigService(
+	configServiceURL string,
+	iamClient iam.Client,
+) (*restful.Container, *CrossOriginResourceSharing) {
+	c := restful.NewContainer()
+
+	// Same argument list justice-config-service passes.
+	filter, err := NewCrossOriginResourceSharing(
+		configServiceURL,
+		iamClient,
+		publisherNamespace,
+		[]string{serviceOrigin},
+		[]string{
+			http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete,
+			http.MethodOptions,
+		},
+		[]string{
+			"Access-Control-Allow-Origin", "Access-Control-Allow-Methods", "Authorization",
+			"Content-Type", "Accept", "X-Amzn-TraceId",
+		},
+		[]string{},
+		true,
+		0,
+	)
+	if err != nil {
+		panic("unable to create CORS filter: " + err.Error())
+	}
+	filter.Container = c
+	c.Filter(filter.Filter)
+
+	handler := func(_ *restful.Request, _ *restful.Response) {}
+	ws := new(restful.WebService).Path("/config/v1/admin/namespaces/{namespace}")
+	ws.Route(ws.GET("/configs").To(handler))
+	ws.Route(ws.GET("/configs/{configKey}").To(handler))
+	c.Add(ws)
+
+	return c, filter
 }
 
 // preflightRequest builds the request curl sends in the AAX-3366 repro:
@@ -372,6 +424,237 @@ func TestFilterPreflight_QueriesNamespaceFromRequest(t *testing.T) {
 			if client.asked[0] != tc.want {
 				t.Errorf("config lookup used namespace %q, want %q", client.asked[0], tc.want)
 			}
+		})
+	}
+}
+
+// recordedRequest is one request the config service stub received.
+type recordedRequest struct {
+	method string
+	path   string
+	query  url.Values
+	auth   string
+}
+
+// stubConfigService serves the two config keys the filter fetches — CORS for a
+// namespace and CORS_SUBDOMAIN for the publisher namespace — and records every
+// request, so a test can assert the filter calls the real endpoint with the
+// real parameters.
+func stubConfigService(t *testing.T, domainsByNamespace map[string][]string) (*httptest.Server, *[]recordedRequest) {
+	t.Helper()
+
+	var got []recordedRequest
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = append(got, recordedRequest{
+			method: r.Method,
+			path:   r.URL.Path,
+			query:  r.URL.Query(),
+			auth:   r.Header.Get("Authorization"),
+		})
+
+		namespace, key := "", ""
+		if parts := splitPath(r.URL.Path); len(parts) == 6 {
+			// v1/admin/namespaces/{namespace}/configs/{key}
+			namespace, key = parts[3], parts[5]
+		}
+
+		if key == "CORS_SUBDOMAIN" {
+			writeConfigValue(t, w, namespace, key, CORSSubdomainConfig{SubdomainEnabled: false})
+
+			return
+		}
+
+		domains, ok := domainsByNamespace[namespace]
+		if !ok {
+			w.WriteHeader(http.StatusNotFound)
+
+			return
+		}
+		writeConfigValue(t, w, namespace, key, CORSConfigValue{AllowedDomains: domains})
+	}))
+	t.Cleanup(srv.Close)
+
+	return srv, &got
+}
+
+func splitPath(p string) []string {
+	var parts []string
+	for _, s := range strings.Split(p, "/") {
+		if s != "" {
+			parts = append(parts, s)
+		}
+	}
+
+	return parts
+}
+
+// writeConfigValue emits the config service's response envelope, whose "value"
+// field carries the config as a JSON string.
+func writeConfigValue(t *testing.T, w http.ResponseWriter, namespace, key string, value interface{}) {
+	t.Helper()
+
+	raw, err := json.Marshal(value)
+	if err != nil {
+		t.Fatalf("marshal config value: %v", err)
+	}
+	if err := json.NewEncoder(w).Encode(ConfigServiceResponse{
+		Namespace: namespace,
+		Key:       key,
+		Value:     string(raw),
+	}); err != nil {
+		t.Fatalf("encode response: %v", err)
+	}
+}
+
+// TestPreflightThroughContainer_CallsRealConfigEndpoint drives a preflight
+// through the container exactly as an incoming request would, and asserts both
+// halves of the round trip: the response the browser sees, and the request the
+// filter made to the config service.
+func TestPreflightThroughContainer_CallsRealConfigEndpoint(t *testing.T) {
+	const namespaceOrigin = "https://example.com"
+
+	srv, recorded := stubConfigService(t, map[string][]string{
+		gameNamespace: {namespaceOrigin},
+		// The publisher allows a different origin, so a pass can only come from
+		// resolving the namespace in the request path.
+		publisherNamespace: {"https://publisher.example.org"},
+	})
+
+	c, _ := namespacedContainerWithConfigService(srv.URL, iam.NewMockClient())
+
+	req := httptest.NewRequest(http.MethodOptions, "/config/v1/admin/namespaces/"+gameNamespace+"/configs", nil)
+	req.Header.Set(restful.HEADER_Origin, namespaceOrigin)
+	req.Header.Set(restful.HEADER_AccessControlRequestMethod, http.MethodGet)
+	rec := httptest.NewRecorder()
+	c.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("preflight status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if got := rec.Header().Get(restful.HEADER_AccessControlAllowOrigin); got != namespaceOrigin {
+		t.Errorf("Access-Control-Allow-Origin = %q, want %q", got, namespaceOrigin)
+	}
+
+	var corsCall *recordedRequest
+	for i := range *recorded {
+		if (*recorded)[i].query.Get(includeParentConfigQueryParameter) != "" {
+			corsCall = &(*recorded)[i]
+		}
+	}
+	if corsCall == nil {
+		t.Fatalf("no CORS config request recorded, got %+v", *recorded)
+	}
+
+	wantPath := "/v1/admin/namespaces/" + gameNamespace + "/configs/CORS"
+	if corsCall.path != wantPath {
+		t.Errorf("config service path = %q, want %q", corsCall.path, wantPath)
+	}
+	if got := corsCall.query.Get(includeParentConfigQueryParameter); got != "studio,publisher" {
+		t.Errorf("includeParentConfig = %q, want %q", got, "studio,publisher")
+	}
+	if corsCall.method != http.MethodGet {
+		t.Errorf("config service method = %q, want GET", corsCall.method)
+	}
+	if corsCall.auth != "Bearer mock_token" {
+		t.Errorf("Authorization = %q, want %q", corsCall.auth, "Bearer mock_token")
+	}
+}
+
+// TestPreflightThroughContainer_RefusedOriginGets405 pins the failure mode the
+// report describes: with no OPTIONSFilter installed, a refused preflight runs
+// out of filters and go-restful answers 405, since no route serves OPTIONS.
+func TestPreflightThroughContainer_RefusedOriginGets405(t *testing.T) {
+	srv, _ := stubConfigService(t, map[string][]string{
+		gameNamespace: {"https://example.com"},
+	})
+
+	c, _ := namespacedContainerWithConfigService(srv.URL, iam.NewMockClient())
+
+	req := httptest.NewRequest(http.MethodOptions, "/config/v1/admin/namespaces/"+gameNamespace+"/configs", nil)
+	req.Header.Set(restful.HEADER_Origin, "https://www.google.com")
+	req.Header.Set(restful.HEADER_AccessControlRequestMethod, http.MethodGet)
+	rec := httptest.NewRecorder()
+	c.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Errorf("refused preflight status = %d, want %d", rec.Code, http.StatusMethodNotAllowed)
+	}
+	if got := rec.Header().Get(restful.HEADER_AccessControlAllowOrigin); got != "" {
+		t.Errorf("refused preflight carries Access-Control-Allow-Origin %q, want none", got)
+	}
+}
+
+func TestNamespaceFromRouteTemplate(t *testing.T) {
+	cases := []struct {
+		name      string
+		routePath string
+		urlPath   string
+		want      string
+	}{
+		{
+			"parameter on the WebService root path",
+			"/config/v1/admin/namespaces/{namespace}/configs",
+			"/config/v1/admin/namespaces/" + gameNamespace + "/configs",
+			gameNamespace,
+		},
+		{
+			"parameter carrying a regular expression",
+			"/config/v1/admin/namespaces/{namespace:[a-z0-9-]+}/configs",
+			"/config/v1/admin/namespaces/" + gameNamespace + "/configs",
+			gameNamespace,
+		},
+		{
+			"other parameters before the namespace",
+			"/service/{version}/namespaces/{namespace}/things/{id}",
+			"/service/v2/namespaces/" + gameNamespace + "/things/7",
+			gameNamespace,
+		},
+		{
+			"url shorter than the template",
+			"/config/v1/admin/namespaces/{namespace}/configs",
+			"/config/v1/admin",
+			"",
+		},
+		{"no namespace parameter", "/config/v1/admin/configs", "/config/v1/admin/configs", ""},
+		{"empty template", "", "/config/v1/admin", ""},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := namespaceFromRouteTemplate(tc.routePath, tc.urlPath); got != tc.want {
+				t.Errorf("namespaceFromRouteTemplate(%q, %q) = %q, want %q",
+					tc.routePath, tc.urlPath, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestExtractNamespace_MalformedPreflightPathsDoNotPanic covers resolution
+// against the faithful container for request paths a caller can craft freely —
+// the filter runs before authentication, on unauthenticated OPTIONS requests.
+func TestExtractNamespace_MalformedPreflightPathsDoNotPanic(t *testing.T) {
+	container := namespacedContainer()
+
+	paths := []string{
+		"/",
+		"",
+		"/config",
+		"/config/v1/admin/namespaces",
+		"/config/v1/admin/namespaces/",
+		"/config/v1/admin/namespaces//configs",
+		"/config/v1/admin/namespaces/" + gameNamespace,
+		"/config/v1/admin/namespaces/" + gameNamespace + "/configs/CORS/extra/segments",
+		"/config/v1/admin/namespaces/%2e%2e/configs",
+		"/../../etc/passwd",
+	}
+
+	for _, path := range paths {
+		t.Run(path, func(t *testing.T) {
+			req := preflightRequest(path, "https://example.com", "api.example.net")
+			// The assertion is that this returns rather than panics; any value
+			// is acceptable, since a crafted path has no correct namespace.
+			_ = ExtractNamespaceWithContainer(req, container, false, "")
 		})
 	}
 }
