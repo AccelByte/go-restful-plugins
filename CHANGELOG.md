@@ -1,6 +1,6 @@
-Unreleased
+Release v4.28.4 (2026-09-16)
 ==================
-- `pkg/cors`: Resolve the namespace during CORS preflight (OPTIONS) requests (AAX-3366)
+- `pkg/cors`: Resolve the namespace during CORS preflight (OPTIONS) requests
   - A preflight carries no path parameters: go-restful extracts those during route dispatch, and
     services register no route for the OPTIONS method, so the CORS filter — a container-level
     filter, running before routing — always saw an empty `namespace`. Namespace-scoped CORS config
