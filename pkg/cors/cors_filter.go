@@ -220,7 +220,7 @@ func (c *CrossOriginResourceSharing) getSubdomainSettings() (enabled bool, baseD
 func (c *CrossOriginResourceSharing) getConfigWithDynamicResolution(req *restful.Request) *MergedCORSConfig {
 	c.loadSubdomainConfig()
 	subdomainEnabled, baseDomain := c.getSubdomainSettings()
-	namespace := ExtractNamespace(req, subdomainEnabled, baseDomain)
+	namespace := ExtractNamespaceWithContainer(req, c.Container, subdomainEnabled, baseDomain)
 	if namespace == "" && c.PublisherNamespace != "" {
 		namespace = c.PublisherNamespace
 	}

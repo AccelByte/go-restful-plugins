@@ -1,3 +1,20 @@
+Release v4.28.4 (2026-09-16)
+==================
+- `pkg/cors`: Resolve the namespace during CORS preflight (OPTIONS) requests
+  - A preflight carries no path parameters: go-restful extracts those during route dispatch, and
+    services register no route for the OPTIONS method, so the CORS filter — a container-level
+    filter, running before routing — always saw an empty `namespace`. Namespace-scoped CORS config
+    was therefore unreachable for any preflighted cross-origin request wherever subdomain
+    extraction is off, i.e. Private Cloud: the preflight was refused and go-restful, finding no
+    OPTIONS route, answered 405
+  - Fix: `ExtractNamespaceWithContainer` resolves the namespace from the preflight's own URL, by
+    re-selecting the route with the method the browser announced in `Access-Control-Request-Method`
+    and reading the namespace path parameter off it, falling back to the `/namespaces/{namespace}/`
+    path convention when the filter is not attached to a container
+  - The new step ranks above subdomain and header extraction, matching the priority the actual
+    request gives its path parameter, and applies to preflights only
+  - `ExtractNamespace` keeps its signature and its behavior for non-preflight requests
+
 Release v4.28.2 (2026-06-23)
 ==================
 - `pkg/auth/iam`, `pkg/auth/ic`: Fix case-insensitive Bearer scheme parsing per RFC 7235 §2.1
