@@ -15,6 +15,7 @@
 package util
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -26,7 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// nolint: dupl,funlen // most part of the test is identical
+//nolint:dupl,funlen // most part of the test is identical
 func TestExtractDefaultWithJWT(t *testing.T) {
 	t.Parallel()
 
@@ -56,7 +57,7 @@ func TestExtractDefaultWithJWT(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
 	req.Header.Set(traceIDKey, "testTraceID")
 	req.Header.Set(sessionIDKey, "testSesssionID")
@@ -94,7 +95,7 @@ func TestExtractDefaultWithoutJWT(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
 	req.Header.Set(traceIDKey, "testTraceID")
 	req.Header.Set(sessionIDKey, "testSesssionID")

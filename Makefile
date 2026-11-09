@@ -10,7 +10,7 @@ coverage:
 
 # for local testing
 lint:
-	docker run --rm -v $(PWD):$(PWD) -w $(PWD) golangci/golangci-lint:v1.33.0 golangci-lint run -v
+	docker run --rm -v $(PWD):$(PWD) -w $(PWD) golangci/golangci-lint:v2.12.2 golangci-lint run -v
 
 # for testing on CI/CD. we specify required linter version in the .travis.yml file
 lint-ci:

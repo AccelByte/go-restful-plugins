@@ -59,7 +59,8 @@ type extractAttribute func(req *restful.Request) (userID string, clientID []stri
 
 // extractNull is null function for extracting attribute
 var extractNull extractAttribute = func(req *restful.Request) (userID string, clientID []string, namespace string,
-	traceID string, sessionID string, flightID string) {
+	traceID string, sessionID string, flightID string,
+) {
 	return "", []string{}, "", req.HeaderParameter(TraceIDKey), req.HeaderParameter(SessionIDKey), req.HeaderParameter(FlightIDKey)
 }
 

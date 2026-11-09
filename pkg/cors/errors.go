@@ -53,4 +53,3 @@ func newConfigFetchError(namespace string, err error) error {
 func newPatternCompilationError(pattern string, err error) error {
 	return &patternCompilationError{pattern: pattern, err: err}
 }
-

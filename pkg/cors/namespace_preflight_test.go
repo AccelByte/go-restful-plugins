@@ -15,6 +15,7 @@
 package cors
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -36,7 +37,7 @@ const (
 	includeParentConfigQueryParameter = "includeParentConfig"
 
 	// wantBearerToken is what iam.NewMockClient's ClientToken returns.
-	wantBearerToken = "Bearer mock_token"
+	wantBearerToken = "Bearer mock_token" //nolint:gosec // mock token in a test
 )
 
 // namespacedContainer builds a container wired the way a service serving
@@ -526,7 +527,7 @@ func TestPreflightThroughContainer_CallsRealConfigEndpoint(t *testing.T) {
 
 	c, _ := namespacedContainerWithConfigService(srv.URL, iam.NewMockClient())
 
-	req := httptest.NewRequest(http.MethodOptions, "/config/v1/admin/namespaces/"+gameNamespace+"/configs", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodOptions, "/config/v1/admin/namespaces/"+gameNamespace+"/configs", nil)
 	req.Header.Set(restful.HEADER_Origin, namespaceOrigin)
 	req.Header.Set(restful.HEADER_AccessControlRequestMethod, http.MethodGet)
 	rec := httptest.NewRecorder()
@@ -590,7 +591,7 @@ func TestPreflightThroughContainer_RefusedOriginGets405(t *testing.T) {
 
 	c, _ := namespacedContainerWithConfigService(srv.URL, iam.NewMockClient())
 
-	req := httptest.NewRequest(http.MethodOptions, "/config/v1/admin/namespaces/"+gameNamespace+"/configs", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodOptions, "/config/v1/admin/namespaces/"+gameNamespace+"/configs", nil)
 	req.Header.Set(restful.HEADER_Origin, "https://www.google.com")
 	req.Header.Set(restful.HEADER_AccessControlRequestMethod, http.MethodGet)
 	rec := httptest.NewRecorder()

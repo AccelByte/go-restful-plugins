@@ -99,8 +99,8 @@ func TestIsOriginAllowed(t *testing.T) {
 	config6 := &MergedCORSConfig{AllowedDomains: []string{"https://*.example.io"}}
 	assert.True(t, c.isOriginAllowedWithConfig(config6, "https://subdomain.example.io"))
 	assert.True(t, c.isOriginAllowedWithConfig(config6, "https://game-ns.example.io"))
-	assert.False(t, c.isOriginAllowedWithConfig(config6, "https://example.io"))           // no subdomain
-	assert.False(t, c.isOriginAllowedWithConfig(config6, "https://a.b.example.io"))       // two-level subdomain
+	assert.False(t, c.isOriginAllowedWithConfig(config6, "https://example.io"))            // no subdomain
+	assert.False(t, c.isOriginAllowedWithConfig(config6, "https://a.b.example.io"))        // two-level subdomain
 	assert.False(t, c.isOriginAllowedWithConfig(config6, "https://subdomain.example.com")) // wrong TLD
 	assert.False(t, c.isOriginAllowedWithConfig(config6, "http://subdomain.example.io"))   // wrong scheme
 }

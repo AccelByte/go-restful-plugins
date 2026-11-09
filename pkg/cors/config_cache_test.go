@@ -61,9 +61,9 @@ func TestCacheLoaderCalledOnceWithinTTL(t *testing.T) {
 	}
 	cache := NewConfigCache(1*time.Minute, loader)
 
-	cache.Get("test-ns")
-	cache.Get("test-ns")
-	cache.Get("test-ns")
+	_, _ = cache.Get("test-ns")
+	_, _ = cache.Get("test-ns")
+	_, _ = cache.Get("test-ns")
 
 	if loadCount != 1 {
 		t.Errorf("Expected loader called once (cached), got %d", loadCount)
@@ -86,7 +86,6 @@ func TestCacheNilResult(t *testing.T) {
 	}
 }
 
-
 func TestCacheConcurrentAccess(t *testing.T) {
 	config := &CORSConfigValue{AllowedDomains: []string{"https://example.com"}}
 	loader := func(ns string) (*CORSConfigValue, error) {
@@ -100,7 +99,7 @@ func TestCacheConcurrentAccess(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for j := 0; j < 100; j++ {
-				cache.Get("test-ns")
+				_, _ = cache.Get("test-ns")
 			}
 		}()
 	}

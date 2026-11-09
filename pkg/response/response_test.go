@@ -15,6 +15,7 @@
 package response
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -27,7 +28,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// nolint: dupl // most part of the test is identical
+//nolint:dupl // most part of the test is identical
 func TestWriteSuccess(t *testing.T) {
 	t.Parallel()
 
@@ -49,7 +50,7 @@ func TestWriteSuccess(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
 
 	resp := httptest.NewRecorder()
@@ -65,7 +66,7 @@ func TestWriteSuccess(t *testing.T) {
 		"response body must be %+v", ResponseTest{Message: "success"})
 }
 
-// nolint: dupl // most part of the test is identical
+//nolint:dupl // most part of the test is identical
 func TestWriteErrorWarning(t *testing.T) {
 	t.Parallel()
 
@@ -87,7 +88,7 @@ func TestWriteErrorWarning(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
 
 	resp := httptest.NewRecorder()
@@ -108,7 +109,7 @@ func TestWriteErrorWarning(t *testing.T) {
 	assert.Equal(t, expected, responseTest, "response body must be %+v", expected)
 }
 
-// nolint: dupl // most part of the test is identical
+//nolint:dupl // most part of the test is identical
 func TestWriteErrorInternalServerError(t *testing.T) {
 	t.Parallel()
 
@@ -130,7 +131,7 @@ func TestWriteErrorInternalServerError(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
 
 	resp := httptest.NewRecorder()
@@ -151,7 +152,7 @@ func TestWriteErrorInternalServerError(t *testing.T) {
 	assert.Equal(t, expected, responseTest, "response body must be %+v", expected)
 }
 
-// nolint: dupl // most part of the test is identical
+//nolint:dupl // most part of the test is identical
 func TestWriteErrorWithEventIDWarning(t *testing.T) {
 	t.Parallel()
 
@@ -174,7 +175,7 @@ func TestWriteErrorWithEventIDWarning(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
 
 	resp := httptest.NewRecorder()
@@ -217,7 +218,7 @@ func TestWriteErrorWithEventIDInternalServerError(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
 
 	resp := httptest.NewRecorder()

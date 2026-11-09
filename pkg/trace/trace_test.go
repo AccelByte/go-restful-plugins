@@ -15,6 +15,7 @@
 package trace
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -28,7 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// nolint: dupl // most part of the test is identical
+//nolint:dupl // most part of the test is identical
 func TestFilterWithTraceID(t *testing.T) {
 	t.Parallel()
 
@@ -48,7 +49,7 @@ func TestFilterWithTraceID(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
 	req.Header.Set(TraceIDKey, "123456789")
 
@@ -58,7 +59,7 @@ func TestFilterWithTraceID(t *testing.T) {
 	assert.Equal(t, "123456789", traceID)
 }
 
-// nolint: dupl // most part of the test is identical
+//nolint:dupl // most part of the test is identical
 func TestFilterWithoutTraceID(t *testing.T) {
 	t.Parallel()
 
@@ -78,7 +79,7 @@ func TestFilterWithoutTraceID(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
 
 	resp := httptest.NewRecorder()

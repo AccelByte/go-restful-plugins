@@ -16,6 +16,7 @@ package cors
 
 import (
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -139,7 +140,7 @@ func (c *CrossOriginResourceSharing) Filter(req *restful.Request, resp *restful.
 
 // isPreflightRequest will check if the request is a preflight request or not.
 func (c *CrossOriginResourceSharing) isPreflightRequest(req *restful.Request) bool {
-	if req.Request.Method == "OPTIONS" {
+	if req.Request.Method == http.MethodOptions {
 		if acrm := req.Request.Header.Get(restful.HEADER_AccessControlRequestMethod); acrm != "" {
 			return true
 		}
@@ -329,7 +330,7 @@ func (c *CrossOriginResourceSharing) isValidAccessControlRequestMethodWithConfig
 // isValidAccessControlRequestHeaderWithConfig checks if header is allowed using the provided config.
 func (c *CrossOriginResourceSharing) isValidAccessControlRequestHeaderWithConfig(config *MergedCORSConfig, header string) bool {
 	for _, each := range config.AllowedHeaders {
-		if strings.ToLower(each) == strings.ToLower(header) {
+		if strings.ToLower(each) == strings.ToLower(header) { //nolint:staticcheck // keep the original comparison semantics
 			return true
 		}
 	}

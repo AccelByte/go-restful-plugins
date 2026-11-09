@@ -5,6 +5,7 @@ Release v4.29.0 (2026-11-12)
 - Require Go 1.26
 - `pkg/auth/iam` and `pkg/auth/ic` no longer set the global logrus formatter as a side effect of importing the SDKs
 - `pkg/logger/log`: fix a data race in the tests, which made `make test` fail intermittently
+- Migrate golangci-lint to v2.12.2 (`make lint`, `.travis.yml`); `.travis.yml` builds with Go 1.26
 
 Release v4.28.4 (2026-09-16)
 ==================

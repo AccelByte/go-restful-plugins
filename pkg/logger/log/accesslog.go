@@ -46,12 +46,14 @@ const (
 	fullAccessLogFormat = `time=%s log_type=access method=%s path="%s" status=%d duration=%d length=%d source_ip=%s user_agent="%s" referer="%s" trace_id=%s namespace=%s user_id=%s client_id=%s request_content_type="%s" request_body=AB[%s]AB req_body_size_kb=%.3f response_content_type="%s" response_body=AB[%s]AB resp_body_size_kb=%.3f operation="%s" flight_id="%s" game_version="%s" sdk_version="%s" oss_version="%s"`
 
 	kb = 1 << 10
+
+	mimeTypeJSON = "application/json"
+	mimeTypeForm = "application/x-www-form-urlencoded"
 )
 
 // fullAccessLogFormatter represent logrus.Formatter,
 // this is used to print the custom format for access log.
-type fullAccessLogFormatter struct {
-}
+type fullAccessLogFormatter struct{}
 
 func (f *fullAccessLogFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	return []byte(entry.Message + "\n"), nil
@@ -69,7 +71,7 @@ func init() {
 	if s, exists := os.LookupEnv("FULL_ACCESS_LOG_SUPPORTED_CONTENT_TYPES"); exists {
 		FullAccessLogSupportedContentTypes = strings.Split(s, ",")
 	} else {
-		FullAccessLogSupportedContentTypes = []string{"application/json", "application/xml", "application/x-www-form-urlencoded", "text/plain", "text/html"}
+		FullAccessLogSupportedContentTypes = []string{mimeTypeJSON, "application/xml", mimeTypeForm, "text/plain", "text/html"}
 	}
 
 	FullAccessLogMaxBodySize = 10 << 10 // 10KB
@@ -118,8 +120,8 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 	abSDKVersion := req.HeaderParameter(constant.AccelByteSDKVersion)
 	abOSSVersion := req.HeaderParameter(constant.AccelByteOSSVersion)
 	requestContentType := req.HeaderParameter(constant.ContentType)
-	requestBody := "-"
-	var requestBodySizeInKB float32 = 0
+	requestBody := "-"                  //nolint:ineffassign,wastedassign // default, kept as written
+	var requestBodySizeInKB float32 = 0 //nolint:ineffassign,wastedassign // default, kept as written
 
 	requestUri := req.Request.URL.RequestURI()
 
@@ -164,8 +166,8 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 	}
 
 	responseContentType := respWriterInterceptor.Header().Get(constant.ContentType)
-	responseBody := "-"
-	var responseBodySizeInKB float32 = 0
+	responseBody := "-"                  //nolint:ineffassign,wastedassign // default, kept as written
+	var responseBodySizeInKB float32 = 0 //nolint:ineffassign,wastedassign // default, kept as written
 
 	responseBody, responseBodySizeInKB = getResponseBody(respWriterInterceptor, responseContentType, requestUri)
 
@@ -259,7 +261,7 @@ func getRequestBody(req *restful.Request, contentType, requestURL string) (strin
 			return "data too large", requestBodySizeInKB
 		}
 
-		if strings.Contains(contentType, "application/json") {
+		if strings.Contains(contentType, mimeTypeJSON) {
 			mJson, mErr := util.MinifyJSON(bodyBytes)
 			if mErr != nil {
 				logrus.Infof("failed to minify request body json, error: %v, source:%s, %s", mErr.Error(), mJson, requestURL)
@@ -292,7 +294,7 @@ func getResponseBody(respWriter *ResponseWriterInterceptor, contentType, request
 		return "data too large", responseBodySizeInKB
 	}
 
-	if strings.Contains(contentType, "application/json") {
+	if strings.Contains(contentType, mimeTypeJSON) {
 		mJson, mErr := util.MinifyJSON(respWriter.data)
 		if mErr != nil {
 			logrus.Warnf("failed to minify response body json, error: %v, source:%s, %s", mErr.Error(), mJson, requestURL)

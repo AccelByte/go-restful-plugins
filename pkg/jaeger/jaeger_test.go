@@ -15,6 +15,7 @@
 package jaeger
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -56,7 +57,7 @@ func TestJaegerFilterWithZipkinMultipleHeaders(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
 
 	// more info about headers https://github.com/openzipkin/b3-propagation/blob/master/README.md#multiple-headers
@@ -108,7 +109,7 @@ func TestJaegerFilterWithMissedZipkinHeaders(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
 
 	resp := httptest.NewRecorder()

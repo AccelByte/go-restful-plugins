@@ -18,13 +18,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/AccelByte/ic-go-sdk"
-	"github.com/emicklei/go-restful/v3"
 	"net/http"
 	"os"
 	"strings"
 
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/constant"
+	"github.com/AccelByte/ic-go-sdk"
+	"github.com/emicklei/go-restful/v3"
 	"github.com/sirupsen/logrus"
 )
 
@@ -43,13 +43,12 @@ var DevStackTraceable bool
 type FilterOption func(req *restful.Request, icClient ic.Client, claims *ic.JWTClaims) error
 
 // FilterInitializationOptions hold options for Filter during initialization
-type FilterInitializationOptions struct {
-}
+type FilterInitializationOptions struct{}
 
 // Filter handles auth using filter
 type Filter struct {
 	icClient ic.Client
-	options  *FilterInitializationOptions
+	options  *FilterInitializationOptions //nolint:unused // kept as written
 }
 
 // ErrorResponse is the generic structure for communicating errors from a REST endpoint.
@@ -252,7 +251,7 @@ func respondError(httpStatus, errorCode int, errorMessage string) restful.Servic
 		ErrorMessage: errorMessage,
 	})
 	if err != nil {
-		errMsgByte, _ := json.Marshal(ErrorResponse{
+		errMsgByte, _ := json.Marshal(ErrorResponse{ //nolint:errchkjson // fallback response; this struct always marshals
 			ErrorCode:    InternalServerError,
 			ErrorMessage: "unable to parse error message : " + err.Error(),
 		})

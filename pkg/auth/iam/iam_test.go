@@ -29,7 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// nolint:paralleltest
+//nolint:paralleltest
 func TestValidateRefererHeader_RedirectUriIsDomain(t *testing.T) {
 	iamClient := &iam.MockClient{
 		Healthy:     true,
@@ -112,7 +112,7 @@ func TestValidateRefererHeader_RedirectUriIsDomain(t *testing.T) {
 	}
 }
 
-// nolint:paralleltest
+//nolint:paralleltest
 func TestValidateRefererHeader_RedirectUriIsIP(t *testing.T) {
 	iamClient := &iam.MockClient{
 		Healthy:     true,
@@ -181,7 +181,7 @@ func TestValidateRefererHeader_RedirectUriIsIP(t *testing.T) {
 	}
 }
 
-// nolint:paralleltest
+//nolint:paralleltest
 func TestValidateRefererHeader_RedirectUriContainsPort(t *testing.T) {
 	iamClient := &iam.MockClient{
 		Healthy:     true,
@@ -254,7 +254,7 @@ func TestValidateRefererHeader_RedirectUriContainsPort(t *testing.T) {
 	}
 }
 
-// nolint:paralleltest
+//nolint:paralleltest
 func TestValidateRefererHeader_ClientHaveMultipleRedirectURIs(t *testing.T) {
 	iamClientWithMultipleRedirectURI := &iam.MockClient{
 		Healthy:     true,
@@ -347,7 +347,7 @@ func TestValidateRefererHeader_ClientHaveMultipleRedirectURIs(t *testing.T) {
 	}
 }
 
-// nolint:paralleltest
+//nolint:paralleltest
 func TestValidateRefererHeader_StrictRefererValidation(t *testing.T) {
 	iamClient := &iam.MockClient{
 		Healthy:     true,
@@ -430,7 +430,7 @@ func TestValidateRefererHeader_StrictRefererValidation(t *testing.T) {
 	}
 }
 
-// nolint:paralleltest
+//nolint:paralleltest
 func TestValidateRefererHeaderWithoutSubdomain_SimpleRedirectURI(t *testing.T) {
 	iamClient := &iam.MockClient{
 		Healthy:     true,
@@ -529,7 +529,7 @@ func TestValidateRefererHeaderWithoutSubdomain_SimpleRedirectURI(t *testing.T) {
 	}
 }
 
-// nolint:paralleltest
+//nolint:paralleltest
 func TestValidateRefererHeaderWithSubdomain_SimpleRedirectURI(t *testing.T) {
 	iamClient := &iam.MockClient{
 		Healthy:     true,
@@ -741,7 +741,7 @@ func TestValidateRefererHeaderWithSubdomain_SimpleRedirectURISkipSubdomainValida
 	}
 }
 
-// nolint:paralleltest
+//nolint:paralleltest
 func TestValidateRefererHeaderWithoutSubdomain_SimpleRedirectURIContainsWWW(t *testing.T) {
 	iamClient := &iam.MockClient{
 		Healthy:     true,
@@ -840,7 +840,7 @@ func TestValidateRefererHeaderWithoutSubdomain_SimpleRedirectURIContainsWWW(t *t
 	}
 }
 
-// nolint:paralleltest
+//nolint:paralleltest
 func TestValidateRefererHeaderWithoutSubdomain_RedirectURIContainsPort(t *testing.T) {
 	iamClient := &iam.MockClient{
 		Healthy:     true,
@@ -919,7 +919,7 @@ func TestValidateRefererHeaderWithoutSubdomain_RedirectURIContainsPort(t *testin
 	}
 }
 
-// nolint:paralleltest
+//nolint:paralleltest
 func TestValidateRefererHeaderWithoutSubdomain_RedirectURIIsIP(t *testing.T) {
 	iamClient := &iam.MockClient{
 		Healthy:     true,
@@ -993,7 +993,7 @@ func TestValidateRefererHeaderWithoutSubdomain_RedirectURIIsIP(t *testing.T) {
 	}
 }
 
-// nolint:paralleltest
+//nolint:paralleltest
 func TestGetHost(t *testing.T) {
 	testcases := []struct {
 		name        string
@@ -1065,9 +1065,7 @@ func TestFilterInitializationOptionsFromEnv_SubdomainValidationExcludedNamespace
 }
 
 func TestFilterInitializationOptionsFromEnv_SubdomainValidationExcludedNamespacesEmpty(t *testing.T) {
-	var options *FilterInitializationOptions
-
-	options = FilterInitializationOptionsFromEnv()
+	options := FilterInitializationOptionsFromEnv()
 	assert.Empty(t, options.SubdomainValidationExcludedNamespaces)
 }
 
@@ -1199,7 +1197,7 @@ func TestWithoutBannedTopics(t *testing.T) {
 	}
 }
 
-// nolint:paralleltest
+//nolint:paralleltest
 func TestWithoutBannedTopics_TargetedNamespaceAndExpiry(t *testing.T) {
 	now := time.Now().UTC()
 	future := now.Add(24 * time.Hour)
@@ -1302,7 +1300,7 @@ func TestWithoutBannedTopics_TargetedNamespaceAndExpiry(t *testing.T) {
 	}
 }
 
-// nolint:paralleltest
+//nolint:paralleltest
 func TestWithoutBannedTopics_BannedTopicCaseSensitivity(t *testing.T) {
 	now := time.Now().UTC().Add(24 * time.Hour)
 

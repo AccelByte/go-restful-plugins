@@ -43,7 +43,7 @@ const (
 	MatchmakingBanTopic = "MATCHMAKING"
 	ChatBanTopic        = "CHAT"
 
-	//Packages
+	// Packages
 	MultiplayerPackage = "multiplayer"
 	OnlinePackage      = "online"
 	FoundationsPackage = "foundations"
@@ -60,7 +60,7 @@ type FilterInitializationOptions struct {
 	StrictRefererHeaderValidation              bool     // Enable full path check of redirect uri in referer header validation
 	AllowSubdomainMatchRefererHeaderValidation bool     // Allow checking with subdomain
 	SubdomainValidationEnabled                 bool     // Enable subdomain validation. When it is true, it will match the subdomain in the request url against claims namespace.
-	SubdomainValidationExcludedNamespaces      []string // List of namespaces to be excluded for subdomain validation. When it is not emtpy and the SUBDOMAIN_VALIDATION_ENABLED is true, it will ignore specified namespaces when doing the subdomain validation.
+	SubdomainValidationExcludedNamespaces      []string // List of namespaces to be excluded for subdomain validation. When it is not empty and the SUBDOMAIN_VALIDATION_ENABLED is true, it will ignore specified namespaces when doing the subdomain validation.
 }
 
 // Filter handles auth using filter
@@ -110,7 +110,7 @@ func FilterInitializationOptionsFromEnv() *FilterInitializationOptions {
 		if err != nil {
 			logrus.Errorf("Parse SUBDOMAIN_VALIDATION_ENABLED env error: %v", err)
 		}
-		if value == true {
+		if value {
 			options.AllowSubdomainMatchRefererHeaderValidation = true
 			options.SubdomainValidationEnabled = true
 		}
@@ -311,8 +311,8 @@ func WithValidUser() FilterOption {
 // WithPermission filters request with valid permission only
 func WithPermission(permission *iam.Permission) FilterOption {
 	return func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error {
-		var pathNamespace = req.PathParameter("namespace")
-		var pathUserId = req.PathParameter("userId")
+		pathNamespace := req.PathParameter("namespace")
+		pathUserId := req.PathParameter("userId")
 		requiredPermissionResources := make(map[string]string)
 		requiredPermissionResources["{namespace}"] = pathNamespace
 		requiredPermissionResources["{userId}"] = pathUserId
@@ -476,11 +476,11 @@ func validateSubdomainAgainstNamespace(host string, namespace string, excludedNa
 	}
 	subdomain := part[0]
 	for _, excludedNS := range excludedNamespaces {
-		if strings.ToLower(excludedNS) == strings.ToLower(namespace) {
+		if strings.ToLower(excludedNS) == strings.ToLower(namespace) { //nolint:staticcheck // keep the original comparison semantics
 			return true
 		}
 	}
-	if strings.ToLower(namespace) == strings.ToLower(subdomain) {
+	if strings.ToLower(namespace) == strings.ToLower(subdomain) { //nolint:staticcheck // keep the original comparison semantics
 		return true
 	}
 	return false
@@ -615,7 +615,7 @@ func respondError(httpStatus, errorCode int, errorMessage string) restful.Servic
 		ErrorMessage: errorMessage,
 	})
 	if err != nil {
-		errMsgByte, _ := json.Marshal(ErrorResponse{
+		errMsgByte, _ := json.Marshal(ErrorResponse{ //nolint:errchkjson // fallback response; this struct always marshals
 			ErrorCode:    InternalServerError,
 			ErrorMessage: "unable to parse error message : " + err.Error(),
 		})
@@ -639,7 +639,7 @@ func respondErrorWithRequiredPermission(httpStatus, errorCode int, errorMessage 
 		RequiredPermission: &requiredPermission,
 	})
 	if err != nil {
-		errMsgByte, _ := json.Marshal(ErrorResponse{
+		errMsgByte, _ := json.Marshal(ErrorResponse{ //nolint:errchkjson // fallback response; this struct always marshals
 			ErrorCode:    InternalServerError,
 			ErrorMessage: "unable to parse error message : " + err.Error(),
 		})
@@ -703,7 +703,6 @@ func ActionConverter(action int) string {
 // If the subscription argument is an empty string, validation will fail and access will be forbidden.
 func WithValidSubscription(subscription string) FilterOption {
 	return func(req *restful.Request, iamClient iam.Client, claims *iam.JWTClaims) error {
-
 		// Only check IsSubscribed if subscription is not empty
 		if !iamClient.IsSubscribed(claims, subscription) {
 			return respondError(http.StatusForbidden, InsufficientSubscription,

@@ -117,11 +117,11 @@ func TestExtractSubdomain(t *testing.T) {
 		{"localhost:8080", "", ""}, // 1 part (port removed)
 		{"api.example.com:8080", "", "api"},
 		// baseDomain filtering
-		{"my-ns.myservice.accelbyte.io", "accelbyte.io", "my-ns"},   // suffix matches → extract
-		{"gamingservices.xsolla.com", "accelbyte.io", ""},            // suffix mismatch → skip
-		{"api.gamingservices.xsolla.com", "accelbyte.io", ""},       // 4-part third-party → skip
-		{"my-ns.example.com", "example.com", "my-ns"},               // 3-part with matching suffix
-		{"accelbyte.io", "accelbyte.io", ""},                         // base domain itself → no subdomain
+		{"my-ns.myservice.accelbyte.io", "accelbyte.io", "my-ns"}, // suffix matches → extract
+		{"gamingservices.xsolla.com", "accelbyte.io", ""},         // suffix mismatch → skip
+		{"api.gamingservices.xsolla.com", "accelbyte.io", ""},     // 4-part third-party → skip
+		{"my-ns.example.com", "example.com", "my-ns"},             // 3-part with matching suffix
+		{"accelbyte.io", "accelbyte.io", ""},                      // base domain itself → no subdomain
 	}
 
 	for _, tt := range tests {

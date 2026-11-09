@@ -27,7 +27,8 @@ const (
 
 // ExtractDefault is default function for extracting attribute for filter event logger
 func ExtractDefault(req *restful.Request) (userID string, clientID []string,
-	namespace string, traceID string, sessionID string, flightID string) {
+	namespace string, traceID string, sessionID string, flightID string,
+) {
 	traceID = req.HeaderParameter(traceIDKey)
 	sessionID = req.HeaderParameter(sessionIDKey)
 	flightID = req.HeaderParameter(flightIDKey)

@@ -119,7 +119,7 @@ func (c *DefaultConfigClient) GetCORSConfig(namespace string) (*CORSConfigValue,
 func (c *DefaultConfigClient) GetSubdomainConfig(publisherNamespace string) (*CORSSubdomainConfig, error) {
 	url := fmt.Sprintf("%s/v1/admin/namespaces/%s/configs/CORS_SUBDOMAIN", c.baseURL, publisherNamespace)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(context.Background(), "GET", url, nil)
 	if err != nil {
 		return nil, newConfigFetchError(publisherNamespace, err)
 	}
@@ -170,7 +170,7 @@ func (c *DefaultConfigClient) GetSubdomainConfig(publisherNamespace string) (*CO
 func (c *DefaultConfigClient) fetchFromService(namespace string) (*CORSConfigValue, error) {
 	url := fmt.Sprintf("%s/v1/admin/namespaces/%s/configs/CORS?includeParentConfig=studio,publisher", c.baseURL, namespace)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(context.Background(), "GET", url, nil)
 	if err != nil {
 		return nil, newConfigFetchError(namespace, err)
 	}

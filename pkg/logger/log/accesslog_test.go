@@ -15,7 +15,7 @@
 package log
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -87,7 +87,7 @@ func TestGetResponseBody(t *testing.T) {
 	assert.Equal(t, float32(0), responseBodySize6)
 }
 
-// nolint:paralleltest
+//nolint:paralleltest
 func TestGetRequestBodyThatExceedMaxThreshold(t *testing.T) {
 	FullAccessLogMaxBodySize = 1024 // 1KB
 	FullAccessLogEnabled = true
@@ -111,7 +111,7 @@ test test test test test test test test`
 	assert.Equal(t, float32(len(largeData))/kb, requestBodySize)
 }
 
-// nolint:paralleltest
+//nolint:paralleltest
 func TestGetResponseBodyThatExceedMaxThreshold(t *testing.T) {
 	FullAccessLogMaxBodySize = 1024 // 1KB
 	FullAccessLogEnabled = true
@@ -142,7 +142,7 @@ func createDummyRequest(content string, contentType string) *restful.Request {
 	request.Request.Header.Set("Content-Type", contentType)
 	request.Request.Body = http.NoBody
 	if content != "" {
-		request.Request.Body = ioutil.NopCloser(strings.NewReader(content))
+		request.Request.Body = io.NopCloser(strings.NewReader(content))
 	}
 	return request
 }

@@ -15,6 +15,7 @@
 package event
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -29,7 +30,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// nolint: dupl
+//nolint:dupl
 func TestInfoLog(t *testing.T) {
 	t.Parallel()
 
@@ -55,7 +56,7 @@ func TestInfoLog(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
 	req.Header.Set(TraceIDKey, "123456789")
 	req.Header.Set(SessionIDKey, "11223344")
@@ -78,7 +79,7 @@ func TestInfoLog(t *testing.T) {
 	assert.Contains(t, evt.additionalFields, "test")
 }
 
-// nolint: dupl
+//nolint:dupl
 func TestWarnLog(t *testing.T) {
 	t.Parallel()
 
@@ -104,7 +105,7 @@ func TestWarnLog(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
 
 	resp := httptest.NewRecorder()
@@ -123,7 +124,7 @@ func TestWarnLog(t *testing.T) {
 	assert.Contains(t, evt.additionalFields, "test")
 }
 
-// nolint: dupl
+//nolint:dupl
 func TestDebugLog(t *testing.T) {
 	t.Parallel()
 
@@ -149,7 +150,7 @@ func TestDebugLog(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
 
 	resp := httptest.NewRecorder()
@@ -168,7 +169,7 @@ func TestDebugLog(t *testing.T) {
 	assert.Contains(t, evt.additionalFields, "test")
 }
 
-// nolint: dupl
+//nolint:dupl
 func TestErrorLog(t *testing.T) {
 	t.Parallel()
 
@@ -195,7 +196,7 @@ func TestErrorLog(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
 
 	resp := httptest.NewRecorder()
@@ -216,7 +217,7 @@ func TestErrorLog(t *testing.T) {
 	assert.Contains(t, evt.additionalFields, "test")
 }
 
-// nolint: dupl
+//nolint:dupl
 func TestWithNoEventID(t *testing.T) {
 	t.Parallel()
 
@@ -243,7 +244,7 @@ func TestWithNoEventID(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
 
 	resp := httptest.NewRecorder()
@@ -262,7 +263,7 @@ func TestWithNoEventID(t *testing.T) {
 	assert.Contains(t, evt.additionalFields, "test")
 }
 
-// nolint: dupl,funlen
+//nolint:dupl,funlen
 func TestInfoLogWithJWTClaims(t *testing.T) {
 	t.Parallel()
 
@@ -270,7 +271,8 @@ func TestInfoLogWithJWTClaims(t *testing.T) {
 
 	ws := new(restful.WebService)
 	extract := func(req *restful.Request) (userID string, clientID []string, namespace string, traceID string,
-		sessionID string, flightID string) {
+		sessionID string, flightID string,
+	) {
 		claims := req.Attribute(ClaimsAttribute).(*iam.JWTClaims)
 		if claims != nil {
 			return claims.Subject, claims.Audience, claims.Namespace,
@@ -309,7 +311,7 @@ func TestInfoLogWithJWTClaims(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
 
 	resp := httptest.NewRecorder()

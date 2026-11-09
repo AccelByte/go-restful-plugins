@@ -56,4 +56,3 @@ func (cc *ConfigCache) Get(namespace string) (*CORSConfigValue, error) {
 	}
 	return v.(*CORSConfigValue), nil
 }
-

@@ -107,7 +107,8 @@ func InitGlobalTracer(
 // Span returned here must be finished with span.finish()
 // Any span not finished will not be sent to jaeger agent
 func InjectTrace(ctx context.Context, incomingReq *restful.Request,
-	outgoingReq *http.Request) (*http.Request, opentracing.Span, context.Context) {
+	outgoingReq *http.Request,
+) (*http.Request, opentracing.Span, context.Context) {
 	span, newCtx := StartSpanFromContext(ctx, "outgoing request")
 	if span != nil {
 		ext.HTTPUrl.Set(span, outgoingReq.Host+outgoingReq.RequestURI)
