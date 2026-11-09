@@ -1,3 +1,10 @@
+Release v4.29.0 (2026-11-12)
+==================
+- Update `iam-go-sdk/v2` to v2.9.1 and `ic-go-sdk` to v0.1.1, which removes `go-restful-plugins/v3` and `emicklei/go-restful` v2 from the dependency graph
+- Update `emicklei/go-restful/v3` to v3.12.2, `logrus` to v1.9.3 and `go-jose` to v2.1.6
+- Require Go 1.26
+- `pkg/auth/iam` and `pkg/auth/ic` no longer set the global logrus formatter as a side effect of importing the SDKs
+
 Release v4.28.4 (2026-09-16)
 ==================
 - `pkg/cors`: Resolve the namespace during CORS preflight (OPTIONS) requests
