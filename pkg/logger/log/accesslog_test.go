@@ -25,9 +25,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TestGetRequestBody sets package-level config, so it must not run in parallel with other tests.
 func TestGetRequestBody(t *testing.T) {
-	t.Parallel()
-
 	FullAccessLogEnabled = true
 	FullAccessLogRequestBodyEnabled = true
 
@@ -57,9 +56,8 @@ func TestGetRequestBody(t *testing.T) {
 	assert.Equal(t, float32(0), requestBodySize6)
 }
 
+// TestGetResponseBody sets package-level config, so it must not run in parallel with other tests.
 func TestGetResponseBody(t *testing.T) {
-	t.Parallel()
-
 	FullAccessLogEnabled = true
 	FullAccessLogRequestBodyEnabled = true
 

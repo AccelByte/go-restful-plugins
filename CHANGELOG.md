@@ -4,6 +4,7 @@ Release v4.29.0 (2026-11-12)
 - Update `emicklei/go-restful/v3` to v3.12.2, `logrus` to v1.9.3 and `go-jose` to v2.1.6
 - Require Go 1.26
 - `pkg/auth/iam` and `pkg/auth/ic` no longer set the global logrus formatter as a side effect of importing the SDKs
+- `pkg/logger/log`: fix a data race in the tests, which made `make test` fail intermittently
 
 Release v4.28.4 (2026-09-16)
 ==================
