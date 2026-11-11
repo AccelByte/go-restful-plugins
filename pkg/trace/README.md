@@ -1,5 +1,7 @@
 # Trace
 
+> **Deprecated:** requests are identified by their OpenTelemetry trace ID instead of `X-Ab-TraceID`. Use OpenTelemetry tracing (`go.opentelemetry.io/otel`) to create and propagate it. This package is kept for compatibility and gets no new features.
+
 This package contains filter for generating `traceID` (`X-Ab-TraceID` header field) if there is no `X-Ab-TraceID` in request header.
 
 ## Usage

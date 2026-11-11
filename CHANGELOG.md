@@ -2,9 +2,18 @@ Release v4.29.0 (2026-11-12)
 ==================
 - Update `iam-go-sdk/v2` to v2.9.1 and `ic-go-sdk` to v0.1.1, which removes `go-restful-plugins/v3` and `emicklei/go-restful` v2 from the dependency graph
 - Update `emicklei/go-restful/v3` to v3.12.2, `logrus` to v1.9.3 and `go-jose` to v2.1.6
-- Require Go 1.26
-- `pkg/auth/iam` and `pkg/auth/ic` no longer set the global logrus formatter as a side effect of importing the SDKs
+- Require Go 1.26 (`go 1.26.0`)
+- Importing `pkg/auth/iam`, `pkg/auth/ic` or `pkg/jaeger` no longer sets the global logrus formatter; `pkg/logger/event` and `pkg/response` still do
+- `pkg/jaeger`, `pkg/apm/datadog`: deprecated in favour of OpenTelemetry tracing
+- `pkg/logger/event`: deprecate `TraceIDKey`, as `X-Ab-TraceID` is being replaced by the OpenTelemetry trace ID; deprecate `SessionIDKey` and `FlightIDKey` in favour of the new `constant.SessionID` and `constant.FlightID`
+- `pkg/logger/event`: `Log` accepts a `nil` extract function, which leaves the actor, trace, session and flight IDs empty
+- `pkg/trace`: deprecated, as requests are identified by their OpenTelemetry trace ID instead of `X-Ab-TraceID`
+- `pkg/profiling/pprof`: deprecated, as it registers routes on the global `http.DefaultServeMux`; register pprof routes on the service's own go-restful container instead
+- `pkg/logger/log`: **Behaviour change:** the access log's `trace_id` is now the request's OpenTelemetry trace ID instead of `X-Ab-TraceID`: the span in the request context, otherwise the incoming trace context, otherwise empty. Services without OpenTelemetry tracing log an empty `trace_id`
+- `pkg/util`: **Behaviour change:** `ExtractDefault` returns the request's OpenTelemetry trace ID, the same value as the access log's `trace_id`, instead of the `X-Ab-TraceID` header. The event log's `trace_id` changes too, and so does any value callers take from it, such as a Kafka event's `traceId`
+- `pkg/constant`: add `TraceID` (`trace_id`), the log field name for the OpenTelemetry trace ID
 - `pkg/logger/log`: fix a data race in the tests, which made `make test` fail intermittently
+- Services that use anything deprecated in this release (`pkg/jaeger`, `pkg/apm/datadog`, `pkg/trace`, `pkg/profiling/pprof`, or `event.TraceIDKey`, `SessionIDKey` and `FlightIDKey`) get staticcheck SA1019 warnings after upgrading, which fail `golangci-lint` until the uses are replaced or suppressed
 - Migrate golangci-lint to v2.12.2 (`make lint`, `.travis.yml`); `.travis.yml` builds with Go 1.26
 
 Release v4.28.4 (2026-09-16)

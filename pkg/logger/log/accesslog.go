@@ -23,9 +23,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/AccelByte/go-restful-plugins/v4/internal/requesttrace"
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/auth/iam"
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/constant"
-	"github.com/AccelByte/go-restful-plugins/v4/pkg/trace"
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/util"
 	publicsourceip "github.com/AccelByte/public-source-ip"
 	"github.com/emicklei/go-restful/v3"
@@ -202,10 +202,7 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 		operation = selectedRoute.Operation()
 	}
 
-	traceID := req.Attribute(trace.TraceIDKey)
-	if traceID == nil {
-		traceID = ""
-	}
+	traceID := requesttrace.TraceID(req)
 	duration := time.Since(start)
 
 	fullAccessLogLogger.Infof(fullAccessLogFormat,

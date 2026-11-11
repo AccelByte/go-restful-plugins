@@ -21,11 +21,39 @@ import (
 	"testing"
 
 	"github.com/AccelByte/go-jose/jwt"
+	"github.com/AccelByte/go-restful-plugins/v4/pkg/constant"
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/logger/event"
 	"github.com/AccelByte/iam-go-sdk/v2"
 	"github.com/emicklei/go-restful/v3"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
+
+const testSpanTraceID = "4bf92f3577b34da6a3ce929d0e0e4736"
+
+// newTestRequest returns a request with a span in its context and an X-Ab-TraceID header, which
+// ExtractDefault must not return as the trace ID.
+func newTestRequest(t *testing.T) *http.Request {
+	t.Helper()
+
+	traceID, err := oteltrace.TraceIDFromHex(testSpanTraceID)
+	require.NoError(t, err)
+	spanID, err := oteltrace.SpanIDFromHex("00f067aa0ba902b7")
+	require.NoError(t, err)
+	ctx := oteltrace.ContextWithSpanContext(context.Background(), oteltrace.NewSpanContext(oteltrace.SpanContextConfig{
+		TraceID: traceID,
+		SpanID:  spanID,
+	}))
+
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/namespace/abc/user/def", nil)
+	req.Header.Set("X-Forwarded-For", "8.8.8.8")
+	req.Header.Set("X-Ab-TraceID", "testTraceID")
+	req.Header.Set(constant.SessionID, "testSesssionID")
+	req.Header.Set(constant.FlightID, "testFlightID")
+
+	return req
+}
 
 //nolint:dupl,funlen // most part of the test is identical
 func TestExtractDefaultWithJWT(t *testing.T) {
@@ -57,11 +85,7 @@ func TestExtractDefaultWithJWT(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/namespace/abc/user/def", nil)
-	req.Header.Set("X-Forwarded-For", "8.8.8.8")
-	req.Header.Set(traceIDKey, "testTraceID")
-	req.Header.Set(sessionIDKey, "testSesssionID")
-	req.Header.Set(flightIDKey, "testFlightID")
+	req := newTestRequest(t)
 
 	resp := httptest.NewRecorder()
 	container.ServeHTTP(resp, req)
@@ -69,7 +93,7 @@ func TestExtractDefaultWithJWT(t *testing.T) {
 	assert.Equal(t, "testUserID", UserID)
 	assert.Equal(t, []string{"testClientID"}, ClientIDs)
 	assert.Equal(t, "testNamespace", Namespace)
-	assert.Equal(t, "testTraceID", traceID)
+	assert.Equal(t, testSpanTraceID, traceID, "the OpenTelemetry trace ID, not X-Ab-TraceID")
 	assert.Equal(t, "testSesssionID", sessionID)
 	assert.Equal(t, "testFlightID", flightID)
 }
@@ -95,11 +119,7 @@ func TestExtractDefaultWithoutJWT(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/namespace/abc/user/def", nil)
-	req.Header.Set("X-Forwarded-For", "8.8.8.8")
-	req.Header.Set(traceIDKey, "testTraceID")
-	req.Header.Set(sessionIDKey, "testSesssionID")
-	req.Header.Set(flightIDKey, "testFlightID")
+	req := newTestRequest(t)
 
 	resp := httptest.NewRecorder()
 	container.ServeHTTP(resp, req)
@@ -107,7 +127,7 @@ func TestExtractDefaultWithoutJWT(t *testing.T) {
 	assert.Equal(t, "", UserID)
 	assert.Equal(t, []string{}, ClientIDs)
 	assert.Equal(t, "", Namespace)
-	assert.Equal(t, "testTraceID", traceID)
+	assert.Equal(t, testSpanTraceID, traceID, "the OpenTelemetry trace ID, not X-Ab-TraceID")
 	assert.Equal(t, "testSesssionID", sessionID)
 	assert.Equal(t, "testFlightID", flightID)
 }

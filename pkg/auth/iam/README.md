@@ -7,7 +7,7 @@ This package enables filtering using IAM service in go-restful apps.
 ### Importing
 
 ```go
-import "github.com/AccelByte/go-restful-plugins/pkg/auth/iam"
+import "github.com/AccelByte/go-restful-plugins/v4/pkg/auth/iam"
 ```
 
 ### Create filter

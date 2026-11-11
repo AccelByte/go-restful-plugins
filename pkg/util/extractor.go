@@ -15,23 +15,20 @@
 package util
 
 import (
+	"github.com/AccelByte/go-restful-plugins/v4/internal/requesttrace"
 	"github.com/AccelByte/go-restful-plugins/v4/pkg/auth/iam"
+	"github.com/AccelByte/go-restful-plugins/v4/pkg/constant"
 	"github.com/emicklei/go-restful/v3"
 )
 
-const (
-	traceIDKey   = "X-Ab-TraceID"
-	sessionIDKey = "X-Ab-SessionID"
-	flightIDKey  = "x-flight-id"
-)
-
-// ExtractDefault is default function for extracting attribute for filter event logger
+// ExtractDefault is default function for extracting attribute for filter event logger.
+// The trace ID is the request's OpenTelemetry trace ID, as in the access log, or "" when there is none.
 func ExtractDefault(req *restful.Request) (userID string, clientID []string,
 	namespace string, traceID string, sessionID string, flightID string,
 ) {
-	traceID = req.HeaderParameter(traceIDKey)
-	sessionID = req.HeaderParameter(sessionIDKey)
-	flightID = req.HeaderParameter(flightIDKey)
+	traceID = requesttrace.TraceID(req)
+	sessionID = req.HeaderParameter(constant.SessionID)
+	flightID = req.HeaderParameter(constant.FlightID)
 
 	claims := iam.RetrieveJWTClaims(req)
 	if claims != nil {

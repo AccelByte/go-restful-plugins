@@ -14,6 +14,7 @@
 
 package constant
 
+// HTTP header names.
 const (
 	ContentType         = "Content-Type"
 	Referer             = "Referer"
@@ -22,9 +23,23 @@ const (
 	AccelByteSDKVersion = "AccelByte-SDK-Version"
 	AccelByteOSSVersion = "AccelByte-OSS-Version"
 	FlightID            = "x-flight-id"
-	DefaultRealmLive    = "prod,live,demo,trial"
+	SessionID           = "X-Ab-SessionID"
 )
 
+// Log field names.
+const (
+	// TraceID is the name of the log field that holds a request's OpenTelemetry trace ID.
+	TraceID = "trace_id"
+)
+
+// Environment variable defaults.
+const (
+	// DefaultRealmLive is the default for REALM_LIVE: the comma-separated realm names that
+	// count as production, where detailed insufficient-permission errors are turned off.
+	DefaultRealmLive = "prod,live,demo,trial"
+)
+
+// Permission actions.
 const (
 	PermissionRead   = "READ"
 	PermissionCreate = "CREATE"
