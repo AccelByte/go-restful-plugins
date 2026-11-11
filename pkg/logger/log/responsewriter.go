@@ -14,7 +14,11 @@
 
 package log
 
-import "net/http"
+import (
+	"bufio"
+	"net"
+	"net/http"
+)
 
 // ResponseWriterInterceptor is used to decorate http.ResponseWriter,
 // so we can intercept the Write process
@@ -50,4 +54,28 @@ func (w *ResponseWriterInterceptor) Write(b []byte) (int, error) {
 	}
 
 	return n, err
+}
+
+// Flush sends the data written so far to the client, when a writer underneath can. It makes the interceptor an
+// http.Flusher, so streaming responses, such as server-sent events, still flush behind AccessLog.
+func (w *ResponseWriterInterceptor) Flush() {
+	_ = w.FlushError()
+}
+
+// FlushError is Flush that reports the error, for http.ResponseController. It is passed down through the wrapped
+// writers by http.ResponseController, and is http.ErrNotSupported when none of them can flush.
+func (w *ResponseWriterInterceptor) FlushError() error {
+	return http.NewResponseController(w.ResponseWriter).Flush()
+}
+
+// Hijack hands the connection over to the handler, e.g. for a WebSocket upgrade, when a writer underneath can. It
+// makes the interceptor an http.Hijacker, is passed down through the wrapped writers, and is http.ErrNotSupported
+// when none of them can hijack. Bytes written to a hijacked connection don't reach the access log.
+func (w *ResponseWriterInterceptor) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return http.NewResponseController(w.ResponseWriter).Hijack()
+}
+
+// Unwrap returns the wrapped writer, so that http.ResponseController can reach its other features.
+func (w *ResponseWriterInterceptor) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
 }
