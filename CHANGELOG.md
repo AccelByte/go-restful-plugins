@@ -12,6 +12,7 @@ Release v4.29.0 (2026-11-12)
 - `pkg/logger/log`: **Behaviour change:** the access log's `trace_id` is now the request's OpenTelemetry trace ID instead of `X-Ab-TraceID`: the span in the request context, otherwise the incoming trace context, otherwise empty. Services without OpenTelemetry tracing log an empty `trace_id`
 - `pkg/util`: **Behaviour change:** `ExtractDefault` returns the request's OpenTelemetry trace ID, the same value as the access log's `trace_id`, instead of the `X-Ab-TraceID` header. The event log's `trace_id` changes too, and so does any value callers take from it, such as a Kafka event's `traceId`
 - `pkg/constant`: add `TraceID` (`trace_id`), the log field name for the OpenTelemetry trace ID
+- `pkg/cors`: use a namespace only when it is a valid AGS namespace; an invalid value is ignored and the next source is tried, so the `-` that the edge sends in `x-ab-rl-ns` when it has no namespace now falls back to the publisher namespace. A host given as an IP address is no longer read as a subdomain. Escape the namespace in config service URLs
 - `pkg/logger/log`: fix a data race in the tests, which made `make test` fail intermittently
 - Services that use anything deprecated in this release (`pkg/jaeger`, `pkg/apm/datadog`, `pkg/trace`, `pkg/profiling/pprof`, or `event.TraceIDKey`, `SessionIDKey` and `FlightIDKey`) get staticcheck SA1019 warnings after upgrading, which fail `golangci-lint` until the uses are replaced or suppressed
 - Migrate golangci-lint to v2.12.2 (`make lint`, `.travis.yml`); `.travis.yml` builds with Go 1.26

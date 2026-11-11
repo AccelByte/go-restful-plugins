@@ -15,10 +15,13 @@
 package cors
 
 import (
+	"net"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/emicklei/go-restful/v3"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -34,14 +37,44 @@ const (
 	namespacesPathSegment = "namespaces"
 )
 
+// namespacePattern is the format of an AGS namespace: letters and digits, optionally followed by one hyphen and
+// more letters and digits (a studio namespace, or a game namespace under it). It is the NamespacePattern of
+// github.com/AccelByte/justice-input-validation-go, copied here to avoid that module's dependencies.
+var namespacePattern = regexp.MustCompile(`^[a-zA-Z0-9]{1,256}(-[a-zA-Z0-9]{1,256})?$`)
+
+// isValidNamespace reports whether ns is a valid AGS namespace. Every source of the namespace comes from the
+// request, so a value that isn't one is ignored and the next source is tried. This also ignores the "-" that the
+// rate limit service sets in x-ab-rl-ns when it found no namespace.
+func isValidNamespace(ns string) bool {
+	return namespacePattern.MatchString(ns)
+}
+
+// acceptNamespace reports whether ns, read from source, is a valid AGS namespace, and logs a non-empty value it
+// rejects, so that a misconfigured source can be found.
+func acceptNamespace(source, ns string) bool {
+	if isValidNamespace(ns) {
+		return true
+	}
+	if ns != "" {
+		logrus.Debugf("cors: ignoring %s namespace %q, which is not a valid AGS namespace", source, ns)
+	}
+
+	return false
+}
+
 // ExtractNamespace extracts the namespace from the request using the priority chain:
-// 1. Path parameter (highest priority)
-// 2. Subdomain (from Host header) — only when subdomainEnabled is true
-// 3. x-ab-rl-ns header (lowest priority)
+//  1. Path parameter (highest priority)
+//  2. Preflight URL — for a CORS preflight, the /namespaces/{namespace}/ segment of its URL
+//  3. Subdomain (from Host header) — only when subdomainEnabled is true
+//  4. x-ab-rl-ns header (lowest priority)
+//
+// It is ExtractNamespaceWithContainer without a container.
 //
 // Subdomain extraction is controlled by CORS_SUBDOMAIN_ENABLED. When baseDomain is non-empty
 // (from CORS_SUBDOMAIN_BASE_DOMAIN_SUFFIX), subdomain extraction is further restricted to
 // hosts whose suffix matches ".<baseDomain>", preventing false positives from third-party domains.
+//
+// A value that isn't a valid AGS namespace is ignored, and the next source is tried.
 //
 // Returns the extracted namespace or empty string if not found.
 func ExtractNamespace(req *restful.Request, subdomainEnabled bool, baseDomain string) string {
@@ -60,6 +93,10 @@ func ExtractNamespace(req *restful.Request, subdomainEnabled bool, baseDomain st
 // only for step 2; pass nil when there is none (step 2 then falls back to the
 // AGS path convention).
 //
+// A value that isn't a valid AGS namespace is ignored, and the next source is
+// tried, so a request without a valid namespace falls back to the caller's
+// default, such as the publisher namespace.
+//
 // Returns the extracted namespace or empty string if not found.
 func ExtractNamespaceWithContainer(
 	req *restful.Request,
@@ -68,26 +105,26 @@ func ExtractNamespaceWithContainer(
 	baseDomain string,
 ) string {
 	// Try path parameter first
-	if ns := req.PathParameter(namespacePathParameter); ns != "" {
+	if ns := req.PathParameter(namespacePathParameter); acceptNamespace("path parameter", ns) {
 		return ns
 	}
 
 	// Try the preflight's own URL. This ranks above subdomain and header for
 	// the same reason the path parameter does: it names the namespace the
 	// request the browser is about to send will actually target.
-	if ns := extractPreflightNamespace(req, container); ns != "" {
+	if ns := extractPreflightNamespace(req, container); acceptNamespace("preflight URL", ns) {
 		return ns
 	}
 
 	// Try subdomain extraction from Host header
 	if subdomainEnabled {
-		if ns := extractSubdomain(req, baseDomain); ns != "" {
+		if ns := extractSubdomain(req, baseDomain); acceptNamespace("subdomain", ns) {
 			return ns
 		}
 	}
 
 	// Try x-ab-rl-ns header
-	if ns := req.Request.Header.Get(namespaceHeader); ns != "" {
+	if ns := req.Request.Header.Get(namespaceHeader); acceptNamespace(namespaceHeader+" header", ns) {
 		return ns
 	}
 
@@ -125,7 +162,8 @@ func extractPreflightNamespace(req *restful.Request, container *restful.Containe
 		return ""
 	}
 
-	if ns := namespaceFromRoute(req.Request, method, container); ns != "" {
+	// An invalid value from the route still leaves the path convention to try.
+	if ns := namespaceFromRoute(req.Request, method, container); isValidNamespace(ns) {
 		return ns
 	}
 
@@ -235,6 +273,11 @@ func extractSubdomain(req *restful.Request, baseDomain string) string {
 	// Remove port if present
 	if idx := strings.LastIndex(host, ":"); idx != -1 {
 		host = host[:idx]
+	}
+
+	// A host given as an IP address, e.g. by a probe or an in-cluster call to a pod IP, has no subdomain
+	if net.ParseIP(strings.Trim(host, "[]")) != nil {
+		return ""
 	}
 
 	// When baseDomain is set, only proceed if host belongs to that domain

@@ -21,6 +21,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	neturl "net/url"
 	"time"
 
 	iam "github.com/AccelByte/iam-go-sdk/v2"
@@ -117,7 +118,7 @@ func (c *DefaultConfigClient) GetCORSConfig(namespace string) (*CORSConfigValue,
 // GetSubdomainConfig fetches subdomain extraction settings for the publisher namespace
 // from the CORS_SUBDOMAIN config key. Returns (nil, nil) when no config exists (404).
 func (c *DefaultConfigClient) GetSubdomainConfig(publisherNamespace string) (*CORSSubdomainConfig, error) {
-	url := fmt.Sprintf("%s/v1/admin/namespaces/%s/configs/CORS_SUBDOMAIN", c.baseURL, publisherNamespace)
+	url := fmt.Sprintf("%s/v1/admin/namespaces/%s/configs/CORS_SUBDOMAIN", c.baseURL, neturl.PathEscape(publisherNamespace))
 
 	req, err := http.NewRequestWithContext(context.Background(), "GET", url, nil)
 	if err != nil {
@@ -168,7 +169,7 @@ func (c *DefaultConfigClient) GetSubdomainConfig(publisherNamespace string) (*CO
 // The API returns a nested JSON structure where the actual CORS config is in the "value" field as a JSON string.
 // If an IAMClient is configured, a bearer token is included in the request.
 func (c *DefaultConfigClient) fetchFromService(namespace string) (*CORSConfigValue, error) {
-	url := fmt.Sprintf("%s/v1/admin/namespaces/%s/configs/CORS?includeParentConfig=studio,publisher", c.baseURL, namespace)
+	url := fmt.Sprintf("%s/v1/admin/namespaces/%s/configs/CORS?includeParentConfig=studio,publisher", c.baseURL, neturl.PathEscape(namespace))
 
 	req, err := http.NewRequestWithContext(context.Background(), "GET", url, nil)
 	if err != nil {

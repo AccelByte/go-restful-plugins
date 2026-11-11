@@ -65,9 +65,21 @@ When `configServiceURL` is non-empty, the filter fetches per-namespace CORS conf
 The namespace is resolved from each request in priority order:
 
 1. **Path parameter** — route contains `{namespace}` (e.g. `/namespaces/accelbyte/...` → `accelbyte`)
-2. **Subdomain** — first component of `Host` header with ≥3 parts (e.g. `game-ns.prod.example.io` → `game-ns`)
-3. **Header** — `x-ab-rl-ns` request header
-4. **Fallback** — service static config used if no namespace found
+2. **Preflight URL** — for a CORS preflight (`OPTIONS`), which has no path parameters, the namespace of the route the
+   browser is about to call, or the `/namespaces/{namespace}/` segment of its URL
+3. **Subdomain** — first component of `Host` header with ≥3 parts (e.g. `game-ns.prod.example.io` → `game-ns`), when
+   subdomain extraction is enabled
+4. **Header** — `x-ab-rl-ns` request header
+5. **Fallback** — when no source gives a namespace, the publisher namespace if one is configured, otherwise the
+   service's static config
+
+When a namespace is found but the config service has no config for it (a 404), the service's static config is used;
+the publisher namespace isn't tried. The lookup asks for the namespace's own config together with its studio's and
+publisher's (`includeParentConfig=studio,publisher`).
+
+Only a valid AGS namespace is used: letters and digits, optionally followed by one hyphen and more letters and digits
+(e.g. `accelbyte`, `studio-game`). A value that isn't one is ignored, logged at debug level, and the next source is tried. This includes the
+`-` that the rate limit service sets in `x-ab-rl-ns` when it found no namespace, so those requests use the fallback.
 
 ### Config Merging
 
