@@ -15,7 +15,6 @@
 package log
 
 import (
-	"bytes"
 	"context"
 	"net/http"
 	"net/http/httptest"
@@ -62,14 +61,11 @@ func useTextMapPropagator(t *testing.T, propagator propagation.TextMapPropagator
 
 // TestAccessLogTraceID runs AccessLog in a container and checks the trace_id written to the access log line.
 //
-//nolint:paralleltest // swaps the output of the package-level access log logger and sets the global propagator
+//nolint:paralleltest // swaps the logger outputs and sets the global propagator
 func TestAccessLogTraceID(t *testing.T) {
 	useTextMapPropagator(t, propagation.TraceContext{})
 
-	var out bytes.Buffer
-	originalOut := fullAccessLogLogger.Out
-	fullAccessLogLogger.Out = &out
-	t.Cleanup(func() { fullAccessLogLogger.Out = originalOut })
+	out, _ := captureLogs(t)
 
 	// spanFilter puts a span on the request like observability-go-sdk's request filter does. The span
 	// context is built here, in the parent test, so that the filter makes no assertions in the subtests.

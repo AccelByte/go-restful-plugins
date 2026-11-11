@@ -25,10 +25,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestGetRequestBody sets package-level config, so it must not run in parallel with other tests.
+//nolint:paralleltest // changes the package-level access log settings
 func TestGetRequestBody(t *testing.T) {
-	FullAccessLogEnabled = true
-	FullAccessLogRequestBodyEnabled = true
+	useFullAccessLog(t, 10<<10)
 
 	requestBody1, requestBodySize1 := getRequestBody(createDummyRequest("", ""), "", "")
 	assert.Equal(t, "", requestBody1)
@@ -56,10 +55,9 @@ func TestGetRequestBody(t *testing.T) {
 	assert.Equal(t, float32(0), requestBodySize6)
 }
 
-// TestGetResponseBody sets package-level config, so it must not run in parallel with other tests.
+//nolint:paralleltest // changes the package-level access log settings
 func TestGetResponseBody(t *testing.T) {
-	FullAccessLogEnabled = true
-	FullAccessLogRequestBodyEnabled = true
+	useFullAccessLog(t, 10<<10)
 
 	responseBody1, responseBodySize1 := getResponseBody(createDummyResponse("", ""), "", "")
 	assert.Equal(t, "", responseBody1)
@@ -87,11 +85,9 @@ func TestGetResponseBody(t *testing.T) {
 	assert.Equal(t, float32(0), responseBodySize6)
 }
 
-//nolint:paralleltest
+//nolint:paralleltest // changes the package-level access log settings
 func TestGetRequestBodyThatExceedMaxThreshold(t *testing.T) {
-	FullAccessLogMaxBodySize = 1024 // 1KB
-	FullAccessLogEnabled = true
-	FullAccessLogRequestBodyEnabled = true
+	useFullAccessLog(t, 1024) // 1KB
 
 	largeData := `test test test test test test test test test test test test test test test test test test 
 test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test 
@@ -107,15 +103,13 @@ test test test test test test test test test test test test test test test test 
 test test test test test test test test`
 
 	requestBody, requestBodySize := getRequestBody(createDummyRequest(largeData, "text/plain"), "text/plain", "")
-	assert.Equal(t, "data too large", requestBody)
+	assert.Equal(t, bodyTooLarge, requestBody)
 	assert.Equal(t, float32(len(largeData))/kb, requestBodySize)
 }
 
-//nolint:paralleltest
+//nolint:paralleltest // changes the package-level access log settings
 func TestGetResponseBodyThatExceedMaxThreshold(t *testing.T) {
-	FullAccessLogMaxBodySize = 1024 // 1KB
-	FullAccessLogEnabled = true
-	FullAccessLogRequestBodyEnabled = true
+	useFullAccessLog(t, 1024) // 1KB
 
 	largeData := `test test test test test test test test test test test test test test test test test test 
 test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test 
@@ -131,7 +125,7 @@ test test test test test test test test test test test test test test test test 
 test test test test test test test test`
 
 	responseBody, responseBodySize := getResponseBody(createDummyResponse(largeData, "text/plain"), "text/plain", "")
-	assert.Equal(t, "data too large", responseBody)
+	assert.Equal(t, bodyTooLarge, responseBody)
 	assert.Equal(t, float32(len(largeData))/kb, responseBodySize)
 }
 
@@ -154,8 +148,11 @@ func createDummyResponse(content string, contentType string) *ResponseWriterInte
 		ResponseWriter: httpWriter,
 	}
 
-	return &ResponseWriterInterceptor{
+	interceptor := &ResponseWriterInterceptor{
 		ResponseWriter: response.ResponseWriter,
-		data:           []byte(content),
+		captureBody:    true,
 	}
+	_, _ = interceptor.Write([]byte(content))
+
+	return interceptor
 }

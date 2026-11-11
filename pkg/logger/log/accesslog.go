@@ -49,6 +49,9 @@ const (
 
 	mimeTypeJSON = "application/json"
 	mimeTypeForm = "application/x-www-form-urlencoded"
+
+	// bodyTooLarge is logged in place of a body larger than FullAccessLogMaxBodySize.
+	bodyTooLarge = "data too large"
 )
 
 // fullAccessLogFormatter represent logrus.Formatter,
@@ -127,9 +130,18 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 
 	requestBody, requestBodySizeInKB = getRequestBody(req, requestContentType, requestUri)
 
-	// decorate the original http.ResponseWriter with ResponseWriterInterceptor so we can intercept to get the response bytes
-	respWriterInterceptor := &ResponseWriterInterceptor{ResponseWriter: resp.ResponseWriter}
-	resp.ResponseWriter = respWriterInterceptor
+	// decorate the original http.ResponseWriter with ResponseWriterInterceptor so we can intercept to get the response bytes.
+	// When an AccessLog further out in the chain already did, e.g. one on the container and one on the WebService, its
+	// interceptor is reused, so the response body is copied once. An interceptor that other code created isn't reused.
+	respWriterInterceptor, wrapped := resp.ResponseWriter.(*ResponseWriterInterceptor)
+	if !wrapped || !respWriterInterceptor.fromAccessLog {
+		respWriterInterceptor = &ResponseWriterInterceptor{
+			ResponseWriter: resp.ResponseWriter,
+			captureBody:    logResponseBody(),
+			fromAccessLog:  true,
+		}
+		resp.ResponseWriter = respWriterInterceptor
+	}
 
 	chain.ProcessFilter(req, resp)
 
@@ -171,27 +183,25 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 
 	responseBody, responseBodySizeInKB = getResponseBody(respWriterInterceptor, responseContentType, requestUri)
 
-	if FullAccessLogEnabled {
-		if FullAccessLogRequestBodyEnabled {
-			// mask sensitive field(s)
-			// notes: we masked the request body after calling chain.ProcessFilter first,
-			//        since the MaskedRequestFields attribute is initialized in the inner filter.
-			if maskedRequestFields := req.Attribute(MaskedRequestFieldsAttribute); maskedRequestFields != nil && requestBody != "" {
-				requestBody = MaskFields(requestContentType, requestBody, maskedRequestFields.(string))
-			}
-			if maskedPIIRequestFields := req.Attribute(MaskedPIIRequestFieldsAttribute); maskedPIIRequestFields != nil && requestBody != "" {
-				requestBody = MaskPIIFields(requestContentType, requestBody, maskedPIIRequestFields.(string))
-			}
+	if logRequestBody() {
+		// mask sensitive field(s)
+		// notes: we masked the request body after calling chain.ProcessFilter first,
+		//        since the MaskedRequestFields attribute is initialized in the inner filter.
+		if maskedRequestFields := req.Attribute(MaskedRequestFieldsAttribute); maskedRequestFields != nil && requestBody != "" {
+			requestBody = MaskFields(requestContentType, requestBody, maskedRequestFields.(string))
 		}
+		if maskedPIIRequestFields := req.Attribute(MaskedPIIRequestFieldsAttribute); maskedPIIRequestFields != nil && requestBody != "" {
+			requestBody = MaskPIIFields(requestContentType, requestBody, maskedPIIRequestFields.(string))
+		}
+	}
 
-		if FullAccessLogResponseBodyEnabled {
-			// mask sensitive field(s)
-			if maskedResponseFields := req.Attribute(MaskedResponseFieldsAttribute); maskedResponseFields != nil && responseBody != "" {
-				responseBody = MaskFields(responseContentType, responseBody, maskedResponseFields.(string))
-			}
-			if maskedPIIResponseFields := req.Attribute(MaskedPIIResponseFieldsAttribute); maskedPIIResponseFields != nil && responseBody != "" {
-				responseBody = MaskPIIFields(responseContentType, responseBody, maskedPIIResponseFields.(string))
-			}
+	if logResponseBody() {
+		// mask sensitive field(s)
+		if maskedResponseFields := req.Attribute(MaskedResponseFieldsAttribute); maskedResponseFields != nil && responseBody != "" {
+			responseBody = MaskFields(responseContentType, responseBody, maskedResponseFields.(string))
+		}
+		if maskedPIIResponseFields := req.Attribute(MaskedPIIResponseFieldsAttribute); maskedPIIResponseFields != nil && responseBody != "" {
+			responseBody = MaskPIIFields(responseContentType, responseBody, maskedPIIResponseFields.(string))
 		}
 	}
 
@@ -233,6 +243,16 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 	)
 }
 
+// logRequestBody reports whether request bodies are logged, i.e. full access logging and request bodies are on.
+func logRequestBody() bool {
+	return FullAccessLogEnabled && FullAccessLogRequestBodyEnabled
+}
+
+// logResponseBody reports whether response bodies are logged, i.e. full access logging and response bodies are on.
+func logResponseBody() bool {
+	return FullAccessLogEnabled && FullAccessLogResponseBodyEnabled
+}
+
 // getRequestBody will get the request body from Request object
 func getRequestBody(req *restful.Request, contentType, requestURL string) (string, float32) {
 	if contentType == "" || !isSupportedContentType(contentType) || req.Request == nil || req.Request.Body == nil {
@@ -250,12 +270,12 @@ func getRequestBody(req *restful.Request, contentType, requestURL string) (strin
 		requestBodySize := len(bodyBytes)
 		requestBodySizeInKB := float32(requestBodySize) / kb
 
-		if !FullAccessLogEnabled || !FullAccessLogRequestBodyEnabled {
+		if !logRequestBody() {
 			return "-", requestBodySizeInKB
 		}
 
 		if requestBodySize > FullAccessLogMaxBodySize {
-			return "data too large", requestBodySizeInKB
+			return bodyTooLarge, requestBodySizeInKB
 		}
 
 		if strings.Contains(contentType, mimeTypeJSON) {
@@ -280,15 +300,19 @@ func getResponseBody(respWriter *ResponseWriterInterceptor, contentType, request
 		return "", 0
 	}
 
-	responseBodySize := len(respWriter.data)
+	responseBodySize := respWriter.size
 	responseBodySizeInKB := float32(responseBodySize) / kb
 
-	if !FullAccessLogEnabled || !FullAccessLogResponseBodyEnabled {
+	if !logResponseBody() {
 		return "-", responseBodySizeInKB
 	}
 
+	if responseBodySize == 0 {
+		return "", 0
+	}
+
 	if responseBodySize > FullAccessLogMaxBodySize {
-		return "data too large", responseBodySizeInKB
+		return bodyTooLarge, responseBodySizeInKB
 	}
 
 	if strings.Contains(contentType, mimeTypeJSON) {

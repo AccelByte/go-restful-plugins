@@ -20,10 +20,34 @@ import "net/http"
 // so we can intercept the Write process
 type ResponseWriterInterceptor struct {
 	http.ResponseWriter
+
+	// data is a copy of the response body, collected across all writes while captureBody is set. It is dropped,
+	// and collection stops, once the body is larger than FullAccessLogMaxBodySize, since it is then logged as
+	// bodyTooLarge. Whether the body is logged at all is decided afterwards, from its final Content-Type.
 	data []byte
+	// size is the number of response body bytes written.
+	size        int
+	captureBody bool
+	// fromAccessLog is set on an interceptor that AccessLog created, so that a nested AccessLog reuses only those.
+	fromAccessLog bool
 }
 
 func (w *ResponseWriterInterceptor) Write(b []byte) (int, error) {
-	w.data = b
-	return w.ResponseWriter.Write(b)
+	n, err := w.ResponseWriter.Write(b)
+	// Some writers report a byte count outside 0..len(b) with the error, e.g. go-restful's CompressingResponseWriter
+	// returns -1 once it is closed. The count is clamped only for the access log; the caller gets the wrapped
+	// writer's result unchanged.
+	written := min(max(n, 0), len(b))
+	w.size += written
+
+	if w.captureBody {
+		if w.size > FullAccessLogMaxBodySize {
+			w.captureBody = false
+			w.data = nil
+		} else {
+			w.data = append(w.data, b[:written]...)
+		}
+	}
+
+	return n, err
 }

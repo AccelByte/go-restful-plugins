@@ -37,7 +37,9 @@ with `os.Setenv` has no effect. A service can still change the exported `log.Ful
 
 - **FULL_ACCESS_LOG_ENABLED**
 
-  Full access log mode adds the request body and response body to the access log line. When it is off, the line is
+  Full access log mode adds the request body and response body to the access log line. A response written in
+  several chunks is logged as a whole. For a response of a supported content type, `resp_body_size_kb` counts every
+  byte the handler writes, before any compression, whether full access logging is on or not. When it is off, the line is
   still written, without the bodies. Default: `false`
 
   `common.Log` in `pkg/logger/common` also reads this setting: when it is off, `common.Log` writes a common log
