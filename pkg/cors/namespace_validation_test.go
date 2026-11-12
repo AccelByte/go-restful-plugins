@@ -198,7 +198,7 @@ func TestConfigClient_EscapesNamespace(t *testing.T) {
 func TestExtractNamespace_IPHostHasNoSubdomain(t *testing.T) {
 	t.Parallel()
 
-	for _, host := range []string{"10.0.3.7", "10.0.3.7:8080", "[::1]:8080"} {
+	for _, host := range []string{"10.0.3.7", "10.0.3.7:8080", "[::1]", "[::1]:8080"} {
 		httpReq := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 		httpReq.Host = host
 		httpReq.Header.Set(namespaceHeader, "header-ns")

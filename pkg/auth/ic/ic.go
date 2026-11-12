@@ -48,7 +48,6 @@ type FilterInitializationOptions struct{}
 // Filter handles auth using filter
 type Filter struct {
 	icClient ic.Client
-	options  *FilterInitializationOptions //nolint:unused // kept as written
 }
 
 // ErrorResponse is the generic structure for communicating errors from a REST endpoint.

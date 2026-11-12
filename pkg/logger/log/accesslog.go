@@ -123,12 +123,9 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 	abSDKVersion := req.HeaderParameter(constant.AccelByteSDKVersion)
 	abOSSVersion := req.HeaderParameter(constant.AccelByteOSSVersion)
 	requestContentType := req.HeaderParameter(constant.ContentType)
-	requestBody := "-"                  //nolint:ineffassign,wastedassign // default, kept as written
-	var requestBodySizeInKB float32 = 0 //nolint:ineffassign,wastedassign // default, kept as written
-
 	requestUri := req.Request.URL.RequestURI()
 
-	requestBody, requestBodySizeInKB = getRequestBody(req, requestContentType, requestUri)
+	requestBody, requestBodySizeInKB := getRequestBody(req, requestContentType, requestUri)
 
 	// decorate the original http.ResponseWriter with ResponseWriterInterceptor so we can intercept to get the response bytes.
 	// When an AccessLog further out in the chain already did, e.g. one on the container and one on the WebService, its
@@ -183,10 +180,7 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 	}
 
 	responseContentType := respWriterInterceptor.Header().Get(constant.ContentType)
-	responseBody := "-"                  //nolint:ineffassign,wastedassign // default, kept as written
-	var responseBodySizeInKB float32 = 0 //nolint:ineffassign,wastedassign // default, kept as written
-
-	responseBody, responseBodySizeInKB = getResponseBody(respWriterInterceptor, responseContentType, requestUri)
+	responseBody, responseBodySizeInKB := getResponseBody(respWriterInterceptor, responseContentType, requestUri)
 
 	if logRequestBody() {
 		// mask sensitive field(s)

@@ -330,7 +330,7 @@ func (c *CrossOriginResourceSharing) isValidAccessControlRequestMethodWithConfig
 // isValidAccessControlRequestHeaderWithConfig checks if header is allowed using the provided config.
 func (c *CrossOriginResourceSharing) isValidAccessControlRequestHeaderWithConfig(config *MergedCORSConfig, header string) bool {
 	for _, each := range config.AllowedHeaders {
-		if strings.ToLower(each) == strings.ToLower(header) { //nolint:staticcheck // keep the original comparison semantics
+		if strings.EqualFold(each, header) {
 			return true
 		}
 	}

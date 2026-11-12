@@ -270,9 +270,9 @@ func extractSubdomain(req *restful.Request, baseDomain string) string {
 		return ""
 	}
 
-	// Remove port if present
-	if idx := strings.LastIndex(host, ":"); idx != -1 {
-		host = host[:idx]
+	// Remove the port if present. A host without one, e.g. a bare [::1], is kept as it is.
+	if hostWithoutPort, _, err := net.SplitHostPort(host); err == nil {
+		host = hostWithoutPort
 	}
 
 	// A host given as an IP address, e.g. by a probe or an in-cluster call to a pod IP, has no subdomain

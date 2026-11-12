@@ -476,14 +476,11 @@ func validateSubdomainAgainstNamespace(host string, namespace string, excludedNa
 	}
 	subdomain := part[0]
 	for _, excludedNS := range excludedNamespaces {
-		if strings.ToLower(excludedNS) == strings.ToLower(namespace) { //nolint:staticcheck // keep the original comparison semantics
+		if strings.EqualFold(excludedNS, namespace) {
 			return true
 		}
 	}
-	if strings.ToLower(namespace) == strings.ToLower(subdomain) { //nolint:staticcheck // keep the original comparison semantics
-		return true
-	}
-	return false
+	return strings.EqualFold(namespace, subdomain)
 }
 
 func getHost(req *http.Request) string {
