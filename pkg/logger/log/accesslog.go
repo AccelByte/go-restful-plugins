@@ -139,11 +139,16 @@ func AccessLog(req *restful.Request, resp *restful.Response, chain *restful.Filt
 			ResponseWriter: resp.ResponseWriter,
 			captureBody:    logResponseBody(),
 			fromAccessLog:  true,
+			req:            req,
 		}
 		resp.ResponseWriter = respWriterInterceptor
 	}
 
 	chain.ProcessFilter(req, resp)
+
+	// A handler that wrote nothing gets its headers sent after the chain returns, so set X-Trace-Id now. It is a
+	// no-op when the response was already written.
+	respWriterInterceptor.setTraceIDHeader()
 
 	// mask sensitive field(s)
 	if maskedQueryParams := req.Attribute(MaskedQueryParamsAttribute); maskedQueryParams != nil {

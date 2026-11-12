@@ -132,3 +132,10 @@ The access log's `trace_id` field holds the request's OpenTelemetry trace ID, so
 3. Otherwise, empty.
 
 `trace_id` never holds the `X-Ab-TraceID` request ID.
+
+`log.AccessLog` also returns the same trace ID in the `X-Trace-Id` response header (`constant.TraceIDHeader`), so a caller can quote it to find the request's log lines and its trace. The header:
+
+- is set when the response is first written, or after the handler returns when it wrote nothing, so it sees a span that a filter after `log.AccessLog` put on the request;
+- is left out when `trace_id` is empty, and on a response written to a hijacked connection, such as a WebSocket upgrade;
+- is response-only: an `X-Trace-Id` sent with the request is ignored. To continue a trace, a caller sends the W3C `traceparent` header;
+- keeps a value the handler set itself.

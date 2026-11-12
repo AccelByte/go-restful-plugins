@@ -30,7 +30,10 @@ const (
 	// TraceIDKey is the X-Ab-TraceID request header.
 	//
 	// Deprecated: X-Ab-TraceID is being replaced by the OpenTelemetry trace ID, which logs
-	// write in the trace_id field. There is no replacement header.
+	// write in the trace_id field. To read a request's trace ID, use util.ExtractDefault or the
+	// span in req.Request.Context(). There is no replacement request header: callers receive the
+	// trace ID in the X-Trace-Id response header that log.AccessLog sets, and continue a trace
+	// with traceparent.
 	TraceIDKey = "X-Ab-TraceID"
 
 	// SessionIDKey is the X-Ab-SessionID request header.

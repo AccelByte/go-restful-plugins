@@ -24,6 +24,11 @@ const (
 	AccelByteOSSVersion = "AccelByte-OSS-Version"
 	FlightID            = "x-flight-id"
 	SessionID           = "X-Ab-SessionID"
+	// TraceIDHeader is the response header, set by log.AccessLog, that carries the request's OpenTelemetry trace
+	// ID, the same value as the access log's trace_id, so that a caller can quote it to find the request's logs and
+	// trace. It is response-only: a request's own X-Trace-Id is ignored, and a caller continues a trace with the
+	// W3C traceparent header instead.
+	TraceIDHeader = "X-Trace-Id"
 )
 
 // Log field names.

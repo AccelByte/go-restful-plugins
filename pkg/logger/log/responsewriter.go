@@ -18,10 +18,15 @@ import (
 	"bufio"
 	"net"
 	"net/http"
+
+	"github.com/AccelByte/go-restful-plugins/v4/internal/requesttrace"
+	"github.com/AccelByte/go-restful-plugins/v4/pkg/constant"
+	"github.com/emicklei/go-restful/v3"
 )
 
 // ResponseWriterInterceptor is used to decorate http.ResponseWriter,
-// so we can intercept the Write process
+// so we can intercept the Write process. One that AccessLog created also sets the X-Trace-Id response header.
+// Like the http.ResponseWriter it wraps, it is not safe for concurrent use.
 type ResponseWriterInterceptor struct {
 	http.ResponseWriter
 
@@ -34,9 +39,41 @@ type ResponseWriterInterceptor struct {
 	captureBody bool
 	// fromAccessLog is set on an interceptor that AccessLog created, so that a nested AccessLog reuses only those.
 	fromAccessLog bool
+	// req is the request that AccessLog wrapped the writer for, whose trace ID goes into the X-Trace-Id header.
+	// It is nil on an interceptor that other code created, which then sets no header.
+	req *restful.Request
+	// traceIDHeaderSet is set once the X-Trace-Id header has been decided, so it is done once per response.
+	traceIDHeaderSet bool
+}
+
+// setTraceIDHeader sets the X-Trace-Id response header to the request's OpenTelemetry trace ID, the same value the
+// access log writes as trace_id, unless the response already has one. It runs when the response is first written,
+// or after the chain when the handler wrote nothing, rather than when AccessLog starts, so that it sees a span that
+// a filter after AccessLog put on the request. It sets no header when the request has no trace ID.
+func (w *ResponseWriterInterceptor) setTraceIDHeader() {
+	if w.traceIDHeaderSet || w.req == nil {
+		return
+	}
+	w.traceIDHeaderSet = true
+
+	header := w.Header()
+	if header.Get(constant.TraceIDHeader) != "" {
+		return
+	}
+	if traceID := requesttrace.TraceID(w.req); traceID != "" {
+		header.Set(constant.TraceIDHeader, traceID)
+	}
+}
+
+// WriteHeader sets the X-Trace-Id header, then writes the status code.
+func (w *ResponseWriterInterceptor) WriteHeader(statusCode int) {
+	w.setTraceIDHeader()
+	w.ResponseWriter.WriteHeader(statusCode)
 }
 
 func (w *ResponseWriterInterceptor) Write(b []byte) (int, error) {
+	// A first Write sends the headers too, with an implicit 200.
+	w.setTraceIDHeader()
 	n, err := w.ResponseWriter.Write(b)
 	// Some writers report a byte count outside 0..len(b) with the error, e.g. go-restful's CompressingResponseWriter
 	// returns -1 once it is closed. The count is clamped only for the access log; the caller gets the wrapped
@@ -65,6 +102,8 @@ func (w *ResponseWriterInterceptor) Flush() {
 // FlushError is Flush that reports the error, for http.ResponseController. It is passed down through the wrapped
 // writers by http.ResponseController, and is http.ErrNotSupported when none of them can flush.
 func (w *ResponseWriterInterceptor) FlushError() error {
+	// A flush before any write sends the headers.
+	w.setTraceIDHeader()
 	return http.NewResponseController(w.ResponseWriter).Flush()
 }
 
@@ -72,7 +111,13 @@ func (w *ResponseWriterInterceptor) FlushError() error {
 // makes the interceptor an http.Hijacker, is passed down through the wrapped writers, and is http.ErrNotSupported
 // when none of them can hijack. Bytes written to a hijacked connection don't reach the access log.
 func (w *ResponseWriterInterceptor) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	return http.NewResponseController(w.ResponseWriter).Hijack()
+	conn, rw, err := http.NewResponseController(w.ResponseWriter).Hijack()
+	if err == nil {
+		// The handler writes its own response to a hijacked connection, so no X-Trace-Id header is set on it.
+		w.traceIDHeaderSet = true
+	}
+
+	return conn, rw, err
 }
 
 // Unwrap returns the wrapped writer, so that http.ResponseController can reach its other features.
