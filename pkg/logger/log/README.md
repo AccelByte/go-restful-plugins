@@ -60,6 +60,11 @@ with `os.Setenv` has no effect. A service can still change the exported `log.Ful
 
   Enable capture request body in full access log mode. Default: `true`
 
+  When the request body isn't logged, which includes `FULL_ACCESS_LOG_ENABLED=false`, and its `Content-Length` is
+  known, the body isn't read: `req_body_size_kb` comes from the `Content-Length`, so a truncated body is logged with its
+  declared size. The handler reads such a body from the connection, so on HTTP/1.x it has to read it before writing
+  the response. A body of unknown length, e.g. a chunked one, is read to measure it.
+
 - **FULL_ACCESS_LOG_RESPONSE_BODY_ENABLED**
 
   Enable capture response body in full access log mode. Default: `true`

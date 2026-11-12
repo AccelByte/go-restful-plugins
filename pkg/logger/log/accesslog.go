@@ -259,6 +259,18 @@ func getRequestBody(req *restful.Request, contentType, requestURL string) (strin
 		return "", 0
 	}
 
+	// A body that isn't logged and has a known length isn't read: its size is its Content-Length. net/http ends a body
+	// that is shorter than that with an error, so the size differs from the bytes received only for a truncated body.
+	// The handler then reads the body from the connection, so for HTTP/1.x it has to read it before writing the
+	// response. A body of unknown length, e.g. a chunked one, is still read to measure it.
+	if !logRequestBody() && req.Request.ContentLength >= 0 {
+		if req.Request.ContentLength == 0 {
+			return "", 0
+		}
+
+		return "-", float32(req.Request.ContentLength) / kb
+	}
+
 	bodyBytes, err := io.ReadAll(req.Request.Body)
 	if err != nil {
 		logrus.Errorf("failed to read request body: %v", err.Error())
