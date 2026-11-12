@@ -1,5 +1,15 @@
 Release v4.29.0 (2026-11-12)
 ==================
+Upgrade notes:
+- Go 1.26 is required: upgrading raises a module's `go` directive to 1.26.0
+- Using anything deprecated in this release (`pkg/jaeger`, `pkg/apm/datadog`, `pkg/trace`, `pkg/profiling/pprof`, or `event.TraceIDKey`, `SessionIDKey` and `FlightIDKey`) makes staticcheck report SA1019, so `golangci-lint` fails until the uses are replaced or suppressed. Use `constant.SessionID` and `constant.FlightID`; `X-Ab-TraceID` has no replacement header
+- `trace_id` in the access log and the event log, and the trace ID returned by `util.ExtractDefault`, are now the OpenTelemetry trace ID instead of `X-Ab-TraceID`. Requests can no longer be found in the logs by their `X-Ab-TraceID`, and services without OpenTelemetry tracing log an empty `trace_id`. To get a `trace_id` for every request, register the request filter (`trace.InstrumentCommonAttributes`) of an observability-go-sdk version newer than v1.9.1
+- Services that publish the trace ID from `util.ExtractDefault` with eventstream-go-sdk's `StrictValidation` need eventstream-go-sdk v3.22.1 or v4.5.1 or later, which accept OpenTelemetry trace IDs. Older versions reject most of them as invalid, and those events aren't published
+- With full access logging on, a response body written in several chunks is now logged in full: check that `MaskedResponseFields` and `MaskedPIIResponseFields` cover the fields in the earlier chunks
+- With request bodies not logged, the default, a handler reads a request body of known length from the connection rather than from a copy: on HTTP/1.x, read the request body before writing or hijacking the response
+- Importing `pkg/auth/iam`, `pkg/auth/ic` or `pkg/jaeger` no longer sets the global logrus formatter. A service that relied on it, and doesn't import `pkg/logger/event` or `pkg/response`, should call `logrus.SetFormatter` itself
+
+Changes:
 - Update `iam-go-sdk/v2` to v2.9.1 and `ic-go-sdk` to v0.1.1, which removes `go-restful-plugins/v3` and `emicklei/go-restful` v2 from the dependency graph
 - Update `emicklei/go-restful/v3` to v3.12.2, `logrus` to v1.9.3 and `go-jose` to v2.1.6
 - Require Go 1.26 (`go 1.26.0`)
@@ -17,7 +27,6 @@ Release v4.29.0 (2026-11-12)
 - `pkg/logger/log`: `ResponseWriterInterceptor` implements `http.Flusher`, `http.Hijacker`, `FlushError` and `Unwrap`, passing each call down to the writer underneath, so routes behind `AccessLog` can flush streaming responses, upgrade to WebSocket, and use `http.ResponseController`
 - `pkg/logger/log`: when request bodies aren't logged, a request body with a known `Content-Length` is no longer read into memory just to measure it; its `req_body_size_kb` comes from the `Content-Length`. A body of unknown length, e.g. a chunked one, is still read to measure it, so the access log line is unchanged, except that a truncated body is logged with its declared size. The handler now reads such a body from the connection rather than from a copy, so on HTTP/1.x it has to read the body before writing the response
 - `pkg/logger/log`: fix a data race in the tests, which made `make test` fail intermittently
-- Services that use anything deprecated in this release (`pkg/jaeger`, `pkg/apm/datadog`, `pkg/trace`, `pkg/profiling/pprof`, or `event.TraceIDKey`, `SessionIDKey` and `FlightIDKey`) get staticcheck SA1019 warnings after upgrading, which fail `golangci-lint` until the uses are replaced or suppressed
 - Migrate golangci-lint to v2.12.2 (`make lint`, `.travis.yml`); `.travis.yml` builds with Go 1.26
 
 Release v4.28.4 (2026-09-16)
