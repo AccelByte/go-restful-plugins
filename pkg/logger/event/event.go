@@ -24,9 +24,27 @@ const (
 	eventLogAttribute     = "EventLog"
 	millisecondTimeFormat = "2006-01-02T15:04:05.999Z07:00"
 	logType               = "event"
-	TraceIDKey            = "X-Ab-TraceID"
-	SessionIDKey          = "X-Ab-SessionID"
-	FlightIDKey           = "x-flight-id"
+)
+
+const (
+	// TraceIDKey is the X-Ab-TraceID request header.
+	//
+	// Deprecated: X-Ab-TraceID is being replaced by the OpenTelemetry trace ID, which logs
+	// write in the trace_id field. To read a request's trace ID, use util.ExtractDefault or the
+	// span in req.Request.Context(). There is no replacement request header: callers receive the
+	// trace ID in the X-Trace-Id response header that log.AccessLog sets, and continue a trace
+	// with traceparent.
+	TraceIDKey = "X-Ab-TraceID"
+
+	// SessionIDKey is the X-Ab-SessionID request header.
+	//
+	// Deprecated: use constant.SessionID from pkg/constant.
+	SessionIDKey = "X-Ab-SessionID"
+
+	// FlightIDKey is the x-flight-id request header.
+	//
+	// Deprecated: use constant.FlightID from pkg/constant.
+	FlightIDKey = "x-flight-id"
 )
 
 type event struct {
@@ -53,15 +71,10 @@ type event struct {
 	level            logrus.Level           `structs:"-"`
 }
 
-// ExtractAttribute is a function to extract userID, clientID and namespace from restful.Request
+// extractAttribute is a function to extract the user ID, client IDs, namespace, trace ID, session ID and flight ID
+// from restful.Request.
 type extractAttribute func(req *restful.Request) (userID string, clientID []string, namespace string, traceID string,
 	sessionID string, flightID string)
-
-// extractNull is null function for extracting attribute
-var extractNull extractAttribute = func(req *restful.Request) (userID string, clientID []string, namespace string,
-	traceID string, sessionID string, flightID string) {
-	return "", []string{}, "", req.HeaderParameter(TraceIDKey), req.HeaderParameter(SessionIDKey), req.HeaderParameter(FlightIDKey)
-}
 
 func init() {
 	logrus.SetFormatter(UTCFormatter{&logrus.TextFormatter{TimestampFormat: millisecondTimeFormat}})
@@ -78,7 +91,8 @@ func (formatter UTCFormatter) Format(log *logrus.Entry) ([]byte, error) {
 	return formatter.Formatter.Format(log)
 }
 
-// Log is a filter that will log incoming request with AccelByte's Event Log Format
+// Log is a filter that will log incoming request with AccelByte's Event Log Format.
+// fn extracts the actor, trace, session and flight IDs for the event line; with a nil fn, they are left empty.
 func Log(realm string, service string, fn extractAttribute) restful.FilterFunction {
 	return func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
 		evt := &event{
@@ -94,7 +108,9 @@ func Log(realm string, service string, fn extractAttribute) restful.FilterFuncti
 			return
 		}
 
-		evt.UserID, evt.ClientIDs, evt.Namespace, evt.TraceID, evt.SessionID, evt.FlightID = fn(req)
+		if fn != nil {
+			evt.UserID, evt.ClientIDs, evt.Namespace, evt.TraceID, evt.SessionID, evt.FlightID = fn(req)
+		}
 
 		fields := structs.Map(req.Attribute(eventLogAttribute))
 		for key, value := range evt.additionalFields {
@@ -146,7 +162,7 @@ func Topic(req *restful.Request, topic string) {
 	}
 }
 
-// Action inject the topic to current event in the request
+// Action injects the action to current event in the request
 func Action(req *restful.Request, action string) {
 	if evt := getEvent(req); evt != nil {
 		evt.Action = action

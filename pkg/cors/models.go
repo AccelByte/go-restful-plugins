@@ -30,14 +30,15 @@ type CORSConfigValue struct {
 // The CORS configuration is nested: the outer response has a "value" field which is
 // a JSON string containing the actual CORSConfigValue.
 // Example:
-//   {
-//     "namespace": "game3",
-//     "key": "CORS",
-//     "value": "{\"expose_headers\":[],\"allowed_headers\":[],\"allowed_domains\":[...],\"allowed_methods\":[],\"cookies_allowed\":true}",
-//     "createdAt": "2026-02-09T07:29:24.357Z",
-//     "updatedAt": "2026-02-09T07:29:24.357Z",
-//     "isPublic": false
-//   }
+//
+//	{
+//	  "namespace": "game3",
+//	  "key": "CORS",
+//	  "value": "{\"expose_headers\":[],\"allowed_headers\":[],\"allowed_domains\":[...],\"allowed_methods\":[],\"cookies_allowed\":true}",
+//	  "createdAt": "2026-02-09T07:29:24.357Z",
+//	  "updatedAt": "2026-02-09T07:29:24.357Z",
+//	  "isPublic": false
+//	}
 type ConfigServiceResponse struct {
 	Namespace string `json:"namespace"`
 	Key       string `json:"key"`

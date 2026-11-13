@@ -15,6 +15,7 @@
 package datadog
 
 import (
+	"context"
 	"errors"
 	"net/http/httptest"
 	"testing"
@@ -26,7 +27,7 @@ import (
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
-// nolint:paralleltest
+//nolint:paralleltest
 func TestChildSpan(t *testing.T) {
 	assert := assert.New(t)
 
@@ -43,13 +44,13 @@ func TestChildSpan(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	r := httptest.NewRequest("GET", "/user/123", nil)
+	r := httptest.NewRequestWithContext(context.Background(), "GET", "/user/123", nil)
 	w := httptest.NewRecorder()
 
 	container.ServeHTTP(w, r)
 }
 
-// nolint:paralleltest
+//nolint:paralleltest
 func TestTrace200(t *testing.T) {
 	assert := assert.New(t)
 
@@ -69,7 +70,7 @@ func TestTrace200(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	r := httptest.NewRequest("GET", "/user/123", nil)
+	r := httptest.NewRequestWithContext(context.Background(), "GET", "/user/123", nil)
 	w := httptest.NewRecorder()
 
 	container.ServeHTTP(w, r)
@@ -93,7 +94,7 @@ func TestTrace200(t *testing.T) {
 	assert.Equal("/user/123", span.Tag(ext.HTTPURL))
 }
 
-// nolint:paralleltest
+//nolint:paralleltest
 func TestError(t *testing.T) {
 	assert := assert.New(t)
 
@@ -111,7 +112,7 @@ func TestError(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	r := httptest.NewRequest("GET", "/err", nil)
+	r := httptest.NewRequestWithContext(context.Background(), "GET", "/err", nil)
 	w := httptest.NewRecorder()
 
 	container.ServeHTTP(w, r)
@@ -131,7 +132,7 @@ func TestError(t *testing.T) {
 	assert.Equal(wantErr.Error(), span.Tag(ext.Error).(error).Error())
 }
 
-// nolint:paralleltest
+//nolint:paralleltest
 func TestGetSpanNotInstrumented(t *testing.T) {
 	assert := assert.New(t)
 
@@ -146,7 +147,7 @@ func TestGetSpanNotInstrumented(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	r := httptest.NewRequest("GET", "/ping", nil)
+	r := httptest.NewRequestWithContext(context.Background(), "GET", "/ping", nil)
 	w := httptest.NewRecorder()
 
 	container.ServeHTTP(w, r)
@@ -154,14 +155,14 @@ func TestGetSpanNotInstrumented(t *testing.T) {
 	assert.Equal(response.StatusCode, 200)
 }
 
-// nolint:paralleltest
+//nolint:paralleltest
 func TestPropagation(t *testing.T) {
 	assert := assert.New(t)
 
 	mt := mocktracer.Start()
 	defer mt.Stop()
 
-	r := httptest.NewRequest("GET", "/user/123", nil)
+	r := httptest.NewRequestWithContext(context.Background(), "GET", "/user/123", nil)
 	w := httptest.NewRecorder()
 
 	pspan := tracer.StartSpan("test")
@@ -181,7 +182,7 @@ func TestPropagation(t *testing.T) {
 	container.ServeHTTP(w, r)
 }
 
-// nolint:paralleltest
+//nolint:paralleltest
 func TestInject(t *testing.T) {
 	assert := assert.New(t)
 
@@ -191,7 +192,7 @@ func TestInject(t *testing.T) {
 	ws := new(restful.WebService)
 	ws.Filter(Trace)
 	ws.Route(ws.GET("/user/{id}").To(func(request *restful.Request, response *restful.Response) {
-		outReq := httptest.NewRequest("GET", "/example", nil)
+		outReq := httptest.NewRequestWithContext(context.Background(), "GET", "/example", nil)
 		ignoreErr(Inject(outReq, request))
 		_, err := tracer.Extract(tracer.HTTPHeadersCarrier(outReq.Header))
 		assert.Nil(err)
@@ -200,7 +201,7 @@ func TestInject(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	r := httptest.NewRequest("GET", "/user/123", nil)
+	r := httptest.NewRequestWithContext(context.Background(), "GET", "/user/123", nil)
 	w := httptest.NewRecorder()
 
 	container.ServeHTTP(w, r)

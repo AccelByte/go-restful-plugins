@@ -20,7 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// nolint:paralleltest
+//nolint:paralleltest
 func TestGetDomain(t *testing.T) {
 	assert.Equal(t, "http://example.net", GetDomain("http://example.net"))
 	assert.Equal(t, "http://example.net", GetDomain("http://example.net/"))

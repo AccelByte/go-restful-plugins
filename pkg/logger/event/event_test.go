@@ -15,6 +15,7 @@
 package event
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -29,12 +30,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// nolint: dupl
+//nolint:dupl
 func TestInfoLog(t *testing.T) {
 	t.Parallel()
 
 	ws := new(restful.WebService)
-	ws.Filter(Log("test", "iam", extractNull))
+	ws.Filter(Log("test", "iam", nil))
 
 	var evt *event
 
@@ -55,10 +56,8 @@ func TestInfoLog(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
-	req.Header.Set(TraceIDKey, "123456789")
-	req.Header.Set(SessionIDKey, "11223344")
 
 	resp := httptest.NewRecorder()
 	container.ServeHTTP(resp, req)
@@ -72,18 +71,24 @@ func TestInfoLog(t *testing.T) {
 	assert.Equal(t, 50, evt.Type)
 	assert.Equal(t, 3, evt.EventLevel)
 	assert.Equal(t, "get_user_msg", evt.Message)
-	assert.Equal(t, "123456789", evt.TraceID)
-	assert.Equal(t, "11223344", evt.SessionID)
 	assert.Equal(t, logrus.InfoLevel, evt.level)
 	assert.Contains(t, evt.additionalFields, "test")
+
+	// a nil extract function leaves the extracted fields empty
+	assert.Empty(t, evt.UserID)
+	assert.Empty(t, evt.ClientIDs)
+	assert.Empty(t, evt.Namespace)
+	assert.Empty(t, evt.TraceID)
+	assert.Empty(t, evt.SessionID)
+	assert.Empty(t, evt.FlightID)
 }
 
-// nolint: dupl
+//nolint:dupl
 func TestWarnLog(t *testing.T) {
 	t.Parallel()
 
 	ws := new(restful.WebService)
-	ws.Filter(Log("test", "iam", extractNull))
+	ws.Filter(Log("test", "iam", nil))
 
 	var evt *event
 
@@ -104,7 +109,7 @@ func TestWarnLog(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
 
 	resp := httptest.NewRecorder()
@@ -123,12 +128,12 @@ func TestWarnLog(t *testing.T) {
 	assert.Contains(t, evt.additionalFields, "test")
 }
 
-// nolint: dupl
+//nolint:dupl
 func TestDebugLog(t *testing.T) {
 	t.Parallel()
 
 	ws := new(restful.WebService)
-	ws.Filter(Log("test", "iam", extractNull))
+	ws.Filter(Log("test", "iam", nil))
 
 	var evt *event
 
@@ -149,7 +154,7 @@ func TestDebugLog(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
 
 	resp := httptest.NewRecorder()
@@ -168,12 +173,12 @@ func TestDebugLog(t *testing.T) {
 	assert.Contains(t, evt.additionalFields, "test")
 }
 
-// nolint: dupl
+//nolint:dupl
 func TestErrorLog(t *testing.T) {
 	t.Parallel()
 
 	ws := new(restful.WebService)
-	ws.Filter(Log("test", "iam", extractNull))
+	ws.Filter(Log("test", "iam", nil))
 
 	var evt *event
 
@@ -195,7 +200,7 @@ func TestErrorLog(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
 
 	resp := httptest.NewRecorder()
@@ -216,12 +221,12 @@ func TestErrorLog(t *testing.T) {
 	assert.Contains(t, evt.additionalFields, "test")
 }
 
-// nolint: dupl
+//nolint:dupl
 func TestWithNoEventID(t *testing.T) {
 	t.Parallel()
 
 	ws := new(restful.WebService)
-	ws.Filter(Log("test", "iam", extractNull))
+	ws.Filter(Log("test", "iam", nil))
 
 	var evt *event
 
@@ -243,7 +248,7 @@ func TestWithNoEventID(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
 
 	resp := httptest.NewRecorder()
@@ -262,7 +267,7 @@ func TestWithNoEventID(t *testing.T) {
 	assert.Contains(t, evt.additionalFields, "test")
 }
 
-// nolint: dupl,funlen
+//nolint:dupl,funlen
 func TestInfoLogWithJWTClaims(t *testing.T) {
 	t.Parallel()
 
@@ -270,14 +275,14 @@ func TestInfoLogWithJWTClaims(t *testing.T) {
 
 	ws := new(restful.WebService)
 	extract := func(req *restful.Request) (userID string, clientID []string, namespace string, traceID string,
-		sessionID string, flightID string) {
+		sessionID string, flightID string,
+	) {
 		claims := req.Attribute(ClaimsAttribute).(*iam.JWTClaims)
 		if claims != nil {
-			return claims.Subject, claims.Audience, claims.Namespace,
-				req.HeaderParameter(TraceIDKey), req.HeaderParameter(SessionIDKey), req.HeaderParameter(FlightIDKey)
+			return claims.Subject, claims.Audience, claims.Namespace, "testTraceID", "testSessionID", "testFlightID"
 		}
 
-		return "", []string{}, "", req.HeaderParameter(TraceIDKey), req.HeaderParameter(SessionIDKey), req.HeaderParameter(FlightIDKey)
+		return "", []string{}, "", "testTraceID", "testSessionID", "testFlightID"
 	}
 	ws.Filter(Log("test", "iam", extract))
 
@@ -309,7 +314,7 @@ func TestInfoLogWithJWTClaims(t *testing.T) {
 	container := restful.NewContainer()
 	container.Add(ws)
 
-	req := httptest.NewRequest(http.MethodGet, "/namespace/abc/user/def", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/namespace/abc/user/def", nil)
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
 
 	resp := httptest.NewRecorder()
@@ -324,6 +329,9 @@ func TestInfoLogWithJWTClaims(t *testing.T) {
 	assert.Equal(t, "testUserID", evt.UserID)
 	assert.Equal(t, []string{"testClientID"}, evt.ClientIDs)
 	assert.Equal(t, "testNamespace", evt.Namespace)
+	assert.Equal(t, "testTraceID", evt.TraceID)
+	assert.Equal(t, "testSessionID", evt.SessionID)
+	assert.Equal(t, "testFlightID", evt.FlightID)
 
 	assert.Equal(t, 99, evt.ID)
 	assert.Equal(t, 55, evt.Type)

@@ -56,7 +56,7 @@ func TestConfigClientGetCORSConfig(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
@@ -141,7 +141,7 @@ func TestConfigClientInvalidJSON(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		// Return invalid JSON
-		w.Write([]byte("invalid json"))
+		_, _ = w.Write([]byte("invalid json"))
 	}))
 	defer server.Close()
 
@@ -163,7 +163,7 @@ func TestConfigClientInvalidValueJSON(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
@@ -184,7 +184,7 @@ func TestConfigClientEmptyValue(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
@@ -247,7 +247,7 @@ func TestIAMClientTokenAuthentication(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 

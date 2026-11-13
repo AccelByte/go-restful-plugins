@@ -1,5 +1,7 @@
 # Jaeger
 
+> **Deprecated:** the Jaeger Go client and OpenTracing are no longer maintained upstream. Use OpenTelemetry tracing (`go.opentelemetry.io/otel`) instead. This package is kept for compatibility and gets no new features.
+
 This package contains filter for generating `jaeger span`
 
 ## Usage

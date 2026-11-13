@@ -7,7 +7,7 @@ This package enables logging in go-restful apps.
 ### Importing
 
 ```go
-import "github.com/AccelByte/go-restful-plugins/pkg/logger/common"
+import "github.com/AccelByte/go-restful-plugins/v4/pkg/logger/common"
 ```
 
 ### Log all endpoints

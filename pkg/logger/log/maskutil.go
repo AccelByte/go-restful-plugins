@@ -16,11 +16,12 @@ package log
 
 import (
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"net/url"
 	"regexp"
 	"strings"
 	"sync"
+
+	"github.com/sirupsen/logrus"
 )
 
 var FieldRegexCache = sync.Map{}
@@ -65,9 +66,9 @@ func MaskFields(contentType, content, fields string) string {
 			FieldRegexCache.Store(fieldName, fieldRegex)
 		}
 
-		if strings.Contains(contentType, "application/json") {
+		if strings.Contains(contentType, mimeTypeJSON) { //nolint:gocritic // kept as written
 			content = fieldRegex.JsonPattern.ReplaceAllString(content, fmt.Sprintf("\"%s\":\"%s\"", fieldName, MaskedValue))
-		} else if strings.Contains(contentType, "application/x-www-form-urlencoded") {
+		} else if strings.Contains(contentType, mimeTypeForm) {
 			content = fieldRegex.QueryStringPattern.ReplaceAllString(content, fmt.Sprintf("%s=%s", fieldName, MaskedValue))
 		} else {
 			// try json pattern and form-data pattern
@@ -123,7 +124,7 @@ func MaskPIIFields(contentType, content, fields string) string {
 			FieldRegexCache.Store(fieldName, fieldRegex)
 		}
 
-		if strings.Contains(contentType, "application/json") {
+		if strings.Contains(contentType, mimeTypeJSON) { //nolint:gocritic // kept as written
 			content = fieldRegex.JsonPattern.ReplaceAllStringFunc(content, func(m string) string {
 				parts := fieldRegex.JsonPattern.FindStringSubmatch(m)
 				if len(parts) < 2 {
@@ -142,7 +143,7 @@ func MaskPIIFields(contentType, content, fields string) string {
 				}
 				return fmt.Sprintf(`"%s":"%s"`, fieldName, maskLastNChars(matched, defaultMaskCharsCount))
 			})
-		} else if strings.Contains(contentType, "application/x-www-form-urlencoded") {
+		} else if strings.Contains(contentType, mimeTypeForm) {
 			content = fieldRegex.QueryStringPattern.ReplaceAllStringFunc(content, func(m string) string {
 				parts := fieldRegex.QueryStringPattern.FindStringSubmatch(m)
 				if parts[1] != "" {
@@ -228,7 +229,7 @@ func maskLastNChars(value string, n int) string {
 	}
 
 	if strings.HasPrefix(value, `"`) {
-		value = strings.Trim(value, `""`)
+		value = strings.Trim(value, `"`)
 	}
 	decoded, err := url.QueryUnescape(value)
 	if err != nil {

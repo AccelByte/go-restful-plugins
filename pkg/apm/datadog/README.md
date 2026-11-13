@@ -1,5 +1,7 @@
 # Datadog Tracing
 
+> **Deprecated:** use OpenTelemetry tracing (`go.opentelemetry.io/otel`) instead. This package is kept for compatibility and gets no new features.
+
 This package enables Datadog tracing in go-restful apps.
 
 The `Trace()` filter function will automatically detect the trace in HTTP
@@ -10,7 +12,7 @@ request header, if any, and generate trace for that request.
 ### Importing
 
 ```go
-import "github.com/AccelByte/go-restful-plugins/pkg/apm/datadog"
+import "github.com/AccelByte/go-restful-plugins/v4/pkg/apm/datadog"
 ```
 
 ### Start the tracer

@@ -42,7 +42,7 @@ func MergeConfigs(service, ns *CORSConfigValue) *MergedCORSConfig {
 		AllowedMethods: dedup(append(service.AllowedMethods, ns.AllowedMethods...)),
 		ExposeHeaders:  dedup(append(service.ExposeHeaders, ns.ExposeHeaders...)),
 		CookiesAllowed: ns.CookiesAllowed, // namespace override
-		MaxAge:         ns.MaxAge,          // namespace override (0 = not set, use namespace's value)
+		MaxAge:         ns.MaxAge,         // namespace override (0 = not set, use namespace's value)
 	}
 
 	return result

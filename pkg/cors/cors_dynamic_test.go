@@ -52,7 +52,7 @@ func NewMockConfigClient() *MockConfigClient {
 
 func TestStaticCORSFilter(t *testing.T) {
 	// Test with just static config (no ConfigClient)
-	filter := &CrossOriginResourceSharing{
+	filter := &CrossOriginResourceSharing{ //nolint:staticcheck // the nil check below is kept as written
 		AllowedDomains: []string{"https://example.com"},
 		AllowedMethods: []string{"GET", "POST"},
 		AllowedHeaders: []string{"Content-Type"},
@@ -62,7 +62,7 @@ func TestStaticCORSFilter(t *testing.T) {
 		ConfigClient:   nil, // No dynamic config
 	}
 
-	if filter == nil {
+	if filter == nil { //nolint:govet,staticcheck // sanity check kept as written
 		t.Fatal("Filter is nil")
 	}
 	if filter.ConfigClient != nil {
@@ -77,18 +77,18 @@ func TestDynamicCORSFilter(t *testing.T) {
 	mockClient := NewMockConfigClient()
 
 	// Test with ConfigClient enabled
-	filter := &CrossOriginResourceSharing{
-		AllowedDomains:      []string{"https://service.com"},
-		AllowedMethods:      []string{"GET"},
-		AllowedHeaders:      []string{"Content-Type"},
-		ExposeHeaders:       []string{"X-Service"},
-		CookiesAllowed:      false,
-		MaxAge:              3600,
+	filter := &CrossOriginResourceSharing{ //nolint:staticcheck // the nil check below is kept as written
+		AllowedDomains:     []string{"https://service.com"},
+		AllowedMethods:     []string{"GET"},
+		AllowedHeaders:     []string{"Content-Type"},
+		ExposeHeaders:      []string{"X-Service"},
+		CookiesAllowed:     false,
+		MaxAge:             3600,
 		ConfigClient:       mockClient, // Dynamic config enabled
 		ConfigFetchTimeout: 200 * time.Millisecond,
 	}
 
-	if filter == nil {
+	if filter == nil { //nolint:govet,staticcheck // sanity check kept as written
 		t.Fatal("Filter is nil")
 	}
 	if filter.ConfigClient == nil {
@@ -299,8 +299,8 @@ func TestFilterPreflightRequest(t *testing.T) {
 		Request: &http.Request{
 			Method: "OPTIONS",
 			Header: http.Header{
-				"Origin":                        []string{"https://example.com"},
-				"Access-Control-Request-Method": []string{"POST"},
+				"Origin":                         []string{"https://example.com"},
+				"Access-Control-Request-Method":  []string{"POST"},
 				"Access-Control-Request-Headers": []string{"Content-Type"},
 			},
 		},
@@ -426,7 +426,6 @@ func TestNewCrossOriginResourceSharingWithIAM(t *testing.T) {
 		true,
 		3600,
 	)
-
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -459,7 +458,6 @@ func TestNewCrossOriginResourceSharingWithoutIAM(t *testing.T) {
 		false,
 		3600,
 	)
-
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}

@@ -14,11 +14,11 @@ This project contains plugins for [go-restful](https://github.com/emicklei/go-re
 | [pkg/logger/common](pkg/logger/common/README.md) | Common request/response logger |
 | [pkg/logger/event](pkg/logger/event/README.md) | Event logger |
 | [pkg/logger/log](pkg/logger/log/README.md) | Log package |
-| [pkg/trace](pkg/trace/README.md) | Trace ID propagation |
-| [pkg/jaeger](pkg/jaeger/README.md) | Jaeger tracing integration |
-| [pkg/apm/datadog](pkg/apm/datadog/README.md) | Datadog APM integration |
+| [pkg/trace](pkg/trace/README.md) | Trace ID propagation (deprecated) |
+| [pkg/jaeger](pkg/jaeger/README.md) | Jaeger tracing integration (deprecated) |
+| [pkg/apm/datadog](pkg/apm/datadog/README.md) | Datadog APM integration (deprecated) |
 | [pkg/response](pkg/response/README.md) | Standard response helpers |
 | [pkg/util](pkg/util/README.md) | Utility functions |
-| [pkg/profiling/pprof](pkg/profiling/pprof/README.md) | pprof profiling endpoint |
+| [pkg/profiling/pprof](pkg/profiling/pprof/README.md) | pprof profiling endpoint (deprecated) |
 
 Find each package's full documentation in its own README.

@@ -1,3 +1,36 @@
+Release v4.29.0 (2026-11-12)
+==================
+Upgrade notes:
+- Go 1.26 is required: upgrading raises a module's `go` directive to 1.26.0
+- Using anything deprecated in this release (`pkg/jaeger`, `pkg/apm/datadog`, `pkg/trace`, `pkg/profiling/pprof`, or `event.TraceIDKey`, `SessionIDKey` and `FlightIDKey`) makes staticcheck report SA1019, so `golangci-lint` fails until the uses are replaced or suppressed. Use `constant.SessionID` and `constant.FlightID`. For a request's trace ID, use `util.ExtractDefault` or the span in the request context; there is no replacement request header
+- `trace_id` in the access log and the event log, and the trace ID returned by `util.ExtractDefault`, are now the OpenTelemetry trace ID instead of `X-Ab-TraceID`, so requests can no longer be found in the logs by their `X-Ab-TraceID`. Services that already put an OpenTelemetry span on the request, for example with observability-go-sdk's `trace.InstrumentCommonAttributes` filter or their own tracing filter, need no change, whether that filter runs before or after `AccessLog`. Other services log the trace ID of the incoming trace context when their global propagator can read it, and an empty `trace_id` otherwise; for example, a B3-only propagator doesn't read a W3C `traceparent`. To get one for every request, register observability-go-sdk's request filter; versions newer than v1.9.1 are built against this release
+- `AccessLog` returns the logged trace ID in the new `X-Trace-Id` response header, and no header when `trace_id` is empty. A service that still registers the deprecated `pkg/trace` filter also returns `X-Ab-TraceID`, a different ID that is no longer in the logs, so callers may quote the wrong one: remove that filter. The filter also sets the `trace.TraceIDKey` request attribute, and adds an `X-Ab-TraceID` request header when a request has none, so first move any code that reads them, for example to set a Kafka event's `traceId`, to `util.ExtractDefault`
+- Services that publish the trace ID from `util.ExtractDefault` with eventstream-go-sdk's `StrictValidation` need eventstream-go-sdk v3.22.1 or v4.5.1 or later, which accept OpenTelemetry trace IDs. Older versions reject most of them as invalid, and those events aren't published
+- With full access logging on, a response body written in several chunks is now logged in full: check that `MaskedResponseFields` and `MaskedPIIResponseFields` cover the fields in the earlier chunks
+- With request bodies not logged, the default, a handler reads a request body of known length from the connection rather than from a copy: on HTTP/1.x, read the request body before writing or hijacking the response
+- Importing `pkg/auth/iam`, `pkg/auth/ic` or `pkg/jaeger` no longer sets the global logrus formatter. A service that relied on it, and doesn't import `pkg/logger/event` or `pkg/response`, should call `logrus.SetFormatter` itself
+
+Changes:
+- Update `iam-go-sdk/v2` to v2.9.1 and `ic-go-sdk` to v0.1.1, which removes `go-restful-plugins/v3` and `emicklei/go-restful` v2 from the dependency graph
+- Update `emicklei/go-restful/v3` to v3.12.2, `logrus` to v1.9.3 and `go-jose` to v2.1.6
+- Require Go 1.26 (`go 1.26.0`)
+- Importing `pkg/auth/iam`, `pkg/auth/ic` or `pkg/jaeger` no longer sets the global logrus formatter; `pkg/logger/event` and `pkg/response` still do
+- `pkg/jaeger`, `pkg/apm/datadog`: deprecated in favour of OpenTelemetry tracing
+- `pkg/logger/event`: deprecate `TraceIDKey`, as `X-Ab-TraceID` is being replaced by the OpenTelemetry trace ID; deprecate `SessionIDKey` and `FlightIDKey` in favour of the new `constant.SessionID` and `constant.FlightID`
+- `pkg/logger/event`: `Log` accepts a `nil` extract function, which leaves the actor, trace, session and flight IDs empty
+- `pkg/trace`: deprecated, as requests are identified by their OpenTelemetry trace ID instead of `X-Ab-TraceID`
+- `pkg/profiling/pprof`: deprecated, as it registers routes on the global `http.DefaultServeMux`; register pprof routes on the service's own go-restful container instead
+- `pkg/logger/log`: **Behaviour change:** the access log's `trace_id` is now the request's OpenTelemetry trace ID instead of `X-Ab-TraceID`: the span in the request context, otherwise the incoming trace context, otherwise empty
+- `pkg/util`: **Behaviour change:** `ExtractDefault` returns the request's OpenTelemetry trace ID, the same value as the access log's `trace_id`, instead of the `X-Ab-TraceID` header. The event log's `trace_id` changes too, and so does any value callers take from it, such as a Kafka event's `traceId`
+- `pkg/constant`: add `TraceID` (`trace_id`), the log field name for the OpenTelemetry trace ID
+- `pkg/logger/log`: `AccessLog` returns the request's trace ID, the same value as the access log's `trace_id`, in the new `X-Trace-Id` response header (`constant.TraceIDHeader`). It is set when the response is first written, left out when there is no trace ID or the connection was hijacked, and ignored on requests; callers continue a trace with `traceparent`. A value the handler set is kept
+- `pkg/cors`: use a namespace only when it is a valid AGS namespace; an invalid value is ignored and the next source is tried, so the `-` that the edge sends in `x-ab-rl-ns` when it has no namespace now falls back to the publisher namespace. A host given as an IP address is no longer read as a subdomain. Escape the namespace in config service URLs
+- `pkg/logger/log`: log the whole response body when a handler writes it in several chunks; only the last chunk was logged, with its size instead of the body's. Fields from the earlier chunks are now logged too, so check that `MaskedResponseFields` covers them. `resp_body_size_kb` is the whole body's size also with full access logging off, and an empty JSON response no longer logs a minify warning
+- `pkg/logger/log`: `ResponseWriterInterceptor` implements `http.Flusher`, `http.Hijacker`, `FlushError` and `Unwrap`, passing each call down to the writer underneath, so routes behind `AccessLog` can flush streaming responses, upgrade to WebSocket, and use `http.ResponseController`
+- `pkg/logger/log`: when request bodies aren't logged, a request body with a known `Content-Length` is no longer read into memory just to measure it; its `req_body_size_kb` comes from the `Content-Length`. A body of unknown length, e.g. a chunked one, is still read to measure it, so the access log line is unchanged, except that a truncated body is logged with its declared size. The handler now reads such a body from the connection rather than from a copy, so on HTTP/1.x it has to read the body before writing the response
+- `pkg/logger/log`: fix a data race in the tests, which made `make test` fail intermittently
+- Migrate golangci-lint to v2.12.2 (`make lint`, `.travis.yml`); `.travis.yml` builds with Go 1.26
+
 Release v4.28.4 (2026-09-16)
 ==================
 - `pkg/cors`: Resolve the namespace during CORS preflight (OPTIONS) requests

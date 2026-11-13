@@ -14,6 +14,7 @@
 
 package constant
 
+// HTTP header names.
 const (
 	ContentType         = "Content-Type"
 	Referer             = "Referer"
@@ -22,9 +23,28 @@ const (
 	AccelByteSDKVersion = "AccelByte-SDK-Version"
 	AccelByteOSSVersion = "AccelByte-OSS-Version"
 	FlightID            = "x-flight-id"
-	DefaultRealmLive    = "prod,live,demo,trial"
+	SessionID           = "X-Ab-SessionID"
+	// TraceIDHeader is the response header, set by log.AccessLog, that carries the request's OpenTelemetry trace
+	// ID, the same value as the access log's trace_id, so that a caller can quote it to find the request's logs and
+	// trace. It is response-only: a request's own X-Trace-Id is ignored, and a caller continues a trace with the
+	// W3C traceparent header instead.
+	TraceIDHeader = "X-Trace-Id"
 )
 
+// Log field names.
+const (
+	// TraceID is the name of the log field that holds a request's OpenTelemetry trace ID.
+	TraceID = "trace_id"
+)
+
+// Environment variable defaults.
+const (
+	// DefaultRealmLive is the default for REALM_LIVE: the comma-separated realm names that
+	// count as production, where detailed insufficient-permission errors are turned off.
+	DefaultRealmLive = "prod,live,demo,trial"
+)
+
+// Permission actions.
 const (
 	PermissionRead   = "READ"
 	PermissionCreate = "CREATE"

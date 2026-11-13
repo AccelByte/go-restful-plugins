@@ -113,8 +113,8 @@ func (pm *PatternMatcher) matchWildcard(origin string) bool {
 		return false
 	}
 
-	prefix := pm.Pattern[:idx]        // e.g., "https://"
-	suffix := pm.Pattern[idx+2:]      // e.g., "example.io" or "example.io:port"
+	prefix := pm.Pattern[:idx]   // e.g., "https://"
+	suffix := pm.Pattern[idx+2:] // e.g., "example.io" or "example.io:port"
 
 	// Strip port from pattern suffix if present
 	patternHostSuffix := suffix

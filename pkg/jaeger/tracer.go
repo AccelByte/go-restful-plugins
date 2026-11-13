@@ -22,7 +22,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/AccelByte/go-restful-plugins/v4/pkg/logger/event"
+	"github.com/AccelByte/go-restful-plugins/v4/pkg/trace" //nolint:staticcheck // pkg/jaeger is deprecated too
 	"github.com/emicklei/go-restful/v3"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -107,7 +107,8 @@ func InitGlobalTracer(
 // Span returned here must be finished with span.finish()
 // Any span not finished will not be sent to jaeger agent
 func InjectTrace(ctx context.Context, incomingReq *restful.Request,
-	outgoingReq *http.Request) (*http.Request, opentracing.Span, context.Context) {
+	outgoingReq *http.Request,
+) (*http.Request, opentracing.Span, context.Context) {
 	span, newCtx := StartSpanFromContext(ctx, "outgoing request")
 	if span != nil {
 		ext.HTTPUrl.Set(span, outgoingReq.Host+outgoingReq.RequestURI)
@@ -139,8 +140,8 @@ func InjectTrace(ctx context.Context, incomingReq *restful.Request,
 		logrus.Debug("outgoing header : ", header)
 	}
 
-	if abTraceID := incomingReq.Request.Header.Get(event.TraceIDKey); abTraceID != "" {
-		outgoingReq.Header.Set(event.TraceIDKey, abTraceID)
+	if abTraceID := incomingReq.Request.Header.Get(trace.TraceIDKey); abTraceID != "" {
+		outgoingReq.Header.Set(trace.TraceIDKey, abTraceID)
 	}
 
 	return outgoingReq, span, newCtx
@@ -177,8 +178,8 @@ func StartSpan(req *restful.Request, operationName string) (opentracing.Span, co
 	ext.HTTPMethod.Set(span, req.Request.Method)
 	ext.HTTPUrl.Set(span, req.Request.Host+req.Request.RequestURI)
 
-	if abTraceID := req.Request.Header.Get(event.TraceIDKey); abTraceID != "" {
-		AddTag(span, event.TraceIDKey, abTraceID)
+	if abTraceID := req.Request.Header.Get(trace.TraceIDKey); abTraceID != "" {
+		AddTag(span, trace.TraceIDKey, abTraceID)
 	}
 
 	return span, opentracing.ContextWithSpan(req.Request.Context(), span)
@@ -214,8 +215,8 @@ func StartSpanIfParentSpanExist(req *restful.Request, operationName string) (ope
 	ext.HTTPMethod.Set(span, req.Request.Method)
 	ext.HTTPUrl.Set(span, req.Request.Host+req.Request.RequestURI)
 
-	if abTraceID := req.Request.Header.Get(event.TraceIDKey); abTraceID != "" {
-		AddTag(span, event.TraceIDKey, abTraceID)
+	if abTraceID := req.Request.Header.Get(trace.TraceIDKey); abTraceID != "" {
+		AddTag(span, trace.TraceIDKey, abTraceID)
 	}
 
 	return span, opentracing.ContextWithSpan(req.Request.Context(), span)

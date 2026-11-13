@@ -103,10 +103,10 @@ func TestMatchOriginWildcard(t *testing.T) {
 		{"https://api.accelbyte.io", true},
 		{"https://admin.accelbyte.io", true},
 		{"https://dev.api.accelbyte.io", false}, // Multiple subdomains not allowed
-		{"https://accelbyte.io", false},          // No subdomain
-		{"http://api.accelbyte.io", false},       // Wrong scheme
-		{"https://api.accelbyte.io:8080", true},  // With port
-		{"https://evilaccelbyte.io", false},      // Different domain
+		{"https://accelbyte.io", false},         // No subdomain
+		{"http://api.accelbyte.io", false},      // Wrong scheme
+		{"https://api.accelbyte.io:8080", true}, // With port
+		{"https://evilaccelbyte.io", false},     // Different domain
 	}
 
 	for _, tt := range tests {

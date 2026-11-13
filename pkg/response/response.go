@@ -42,7 +42,8 @@ const (
 
 // Write sends response with specified values
 func Write(request *restful.Request, response *restful.Response, httpStatusCode int, serviceType int, eventID int,
-	message string, entity interface{}) {
+	message string, entity interface{},
+) {
 	err := response.WriteHeaderAndJson(httpStatusCode, entity, restful.MIME_JSON)
 	if err != nil {
 		WriteErrorWithEventID(request, response, http.StatusInternalServerError, serviceType, eventID, errors.WithStack(err),
@@ -60,13 +61,15 @@ func Write(request *restful.Request, response *restful.Response, httpStatusCode 
 
 // WriteError sends error message
 func WriteError(request *restful.Request, response *restful.Response, httpStatusCode int, serviceType int,
-	eventErr error, errorResponse *Error) {
+	eventErr error, errorResponse *Error,
+) {
 	WriteErrorWithEventID(request, response, httpStatusCode, serviceType, errorResponse.ErrorCode, eventErr, errorResponse)
 }
 
 // WriteErrorWithEventID sends error message with Event ID
 func WriteErrorWithEventID(request *restful.Request, response *restful.Response, httpStatusCode int,
-	serviceType int, eventID int, eventErr error, errorResponse *Error) {
+	serviceType int, eventID int, eventErr error, errorResponse *Error,
+) {
 	err := response.WriteHeaderAndJson(httpStatusCode, errorResponse, restful.MIME_JSON)
 	if err != nil {
 		err = errors.Wrap(err, "unable to write error response")

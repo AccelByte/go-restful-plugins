@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/AccelByte/go-restful-plugins/v4/pkg/trace"
+	"github.com/AccelByte/go-restful-plugins/v4/pkg/trace" //nolint:staticcheck // pkg/jaeger is deprecated too
 	"github.com/emicklei/go-restful/v3"
 )
 
