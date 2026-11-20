@@ -2,6 +2,11 @@
 
 # Go-Restful Plugins
 
+> [!WARNING]
+> **Deprecated — no longer maintained.** This module is frozen: no new features,
+> bug fixes or security patches will be released. Existing versions remain
+> available to read and `go get`, but do not start new work on this module.
+
 This project contains plugins for [go-restful](https://github.com/emicklei/go-restful) projects.
 
 ## Packages
