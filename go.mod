@@ -1,3 +1,5 @@
+// Deprecated: this module is no longer maintained and receives no updates or
+// security fixes. Do not use it for new development.
 module github.com/AccelByte/go-restful-plugins/v4
 
 go 1.26.0
